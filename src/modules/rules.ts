@@ -149,7 +149,7 @@ async function fetchPublishedMessages(guild?: Guild): Promise<CubeMessage[] | nu
 			if (!message.editable) return null
 			messages.push(new CubeMessage(message))
 		} catch (err) {
-			console.log("couldn't fetch rule message")
+			console.error("couldn't fetch rule message", err)
 			return null
 		}
 	}
@@ -349,9 +349,6 @@ export const rulesCommand = createCommand({
 			case 'edit': {
 				const ruleId = await getRuleIdOption('rule-number'); if (!ruleId) return
 				const rule = config.rules[ruleId.section].rules[ruleId.num]
-				console.log(ruleId)
-				console.log(rule)
-				// console.log(`editing rule: ${rule.title}, ${rule.content}`)
 				const modalInteraction = await interaction.showModal(new CubeModalBuilder('rules-edit')
 					.setTitle(`Editing Rule ${stringifyRuleId(ruleId)}`)
 					.addTextInput(titleTextField(rule.title))
