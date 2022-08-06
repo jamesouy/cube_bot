@@ -3,12 +3,10 @@ import * as dotenv from "dotenv"
 
 import { getAllCommands } from './bot-framework/command'
 import { getAllInitializers } from './bot-framework/initializer'
-import { getAllModals, ModalConstructor } from "./bot-framework/modal"
 import { CubeChatInputCommandInteraction, CubeModalSubmitInteraction } from "./util/discord"
 
 dotenv.config()
 
-let modals: ModalConstructor<any>[] = []
 const client = new Client({ intents: [GatewayIntentBits.Guilds]})
 
 /////////////////
@@ -20,10 +18,6 @@ getAllInitializers().then(async initializers => {
 			await initializer.run()
 
 		client.commands = await getAllCommands()
-
-		// modals = await getAllModals()
-		// if (new Set(modals.map(modal => modal.customId)).size < modals.length)
-		// 	return console.error('Some modals have the same customId')
 
 	} catch (err) {
 		return console.error('Error while initializing', err)
@@ -57,12 +51,4 @@ client.on('interactionCreate', async interaction => {
 		}
 	}
 
-	// else if (interaction.isModalSubmit()) {
-	// 	const i = new CubeModalSubmitInteraction(interaction)
-	// 	const modal = modals.find(modal => modal.customId === interaction.customId)
-	// 	if (modal) {
-	// 		await modal.run(i)
-	// 	}
-	// }
-	
 })

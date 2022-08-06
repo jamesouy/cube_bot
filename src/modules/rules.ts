@@ -383,7 +383,7 @@ export const rulesCommand = createCommand({
 					return modalInteraction.reply({
 						content: `Added rule ${stringifyRuleId({ 
 							section: sectionId, 
-							num: config.rules[sectionId].rules.length 
+							num: config.rules[sectionId].rules.length-1
 						})}`,
 						embeds: getRuleEmbed(rule),
 					})
