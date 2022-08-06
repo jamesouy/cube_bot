@@ -61,3 +61,19 @@ export async function readUrl(url: string) {
 	})
 }
 
+/**
+ * Returns the property nested in an object from a path to follow separated by '.'
+ */
+export function getProp(obj: any, key: string) {
+	return getObjProp(obj, key.split('.'))
+}
+function getObjProp(obj: any, keys: string[]): any {
+  if (keys.length == 0) return obj
+  if (!obj[keys[0]]) return undefined
+  if (keys.length == 1) return obj[keys[0]]
+  return getObjProp(obj[keys[0]], keys.slice(1))
+}
+
+export function capitalize(str: string) {
+	return str.replace(/^\w/, (c) => c.toUpperCase())
+}

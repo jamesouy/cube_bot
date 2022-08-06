@@ -5,47 +5,17 @@ import {
 	Message, 
 	Guild, 
 	ChannelType,
+	ModalBuilder,
+	ActionRowBuilder,
+	TextInputBuilder,
+	TextInputStyle,
 } from 'discord.js'
 
 import { createCommand } from "../bot-framework/command";
 import { createConfigInitializer } from '../bot-framework/initializer';
-import { CubeMessage, CubeTextChannel } from '../util/discord'
-import { readUrl } from '../util';
-
-
-///////////////////////////
-/// Custom Slash Command Options
-////////////
-function ruleNumberOption(option: SlashCommandStringOption, description: string, name = 'rule-number') {
-	return option
-		.setName(name)
-		.setDescription(`${description} (B.2 would be section B rule 2)`)
-		.setRequired(true)
-}
-function ruleSectionOption(option: SlashCommandStringOption, description: string, name = 'section') {
-	return option
-		.setName(name)
-		.setDescription(description)
-		.setRequired(true)
-}
-function sectionTitleOption(option: SlashCommandStringOption) {
-	return option
-		.setName('title')
-		.setDescription('Section title')
-		.setRequired(false)
-}
-function ruleTitleOption(option: SlashCommandStringOption) {
-	return option
-		.setName('title')
-		.setDescription('Rule title')
-		.setRequired(false)
-}
-function ruleContentOption(option: SlashCommandStringOption) {
-	return option
-		.setName('content')
-		.setDescription('Rule content')
-		.setRequired(false)
-}
+import { CubeMessage, CubeModalBuilder, CubeTextChannel } from '../util/discord'
+import { capitalize, readUrl } from '../util';
+// import { createModal } from '../bot-framework/modal';
 
 
 //////////////////
@@ -213,6 +183,43 @@ function saveRulesImport(data: string): boolean {
 }
 
 
+///////////////////////////
+/// Custom Slash Command Options
+///////////
+const ruleNumberOption = (description: string, name = 'rule-number') => 
+new SlashCommandStringOption()
+	.setName(name)
+	.setDescription(`${description} (B.2 would be section B rule 2)`)
+	.setRequired(true)
+
+const ruleSectionOption = (description: string, name = 'section') => 
+new SlashCommandStringOption()
+	.setName(name)
+	.setDescription(description)
+	.setRequired(true)
+
+const sectionTitleOption = () => new SlashCommandStringOption()
+	.setName('title')
+	.setDescription('Section title')
+	.setRequired(true)
+
+//////////////////////
+/// Modal Fields
+//////////
+const myTextField = (id: string, style: TextInputStyle, length: number, placeholder?: string) =>
+new TextInputBuilder()
+	.setCustomId(id)
+	.setLabel(capitalize(id))
+	.setStyle(style)
+	.setMaxLength(length)
+	.setPlaceholder(capitalize(id)+'...')
+	.setValue(placeholder ?? '')
+
+const titleTextField = (placeholder?: string) => 	 myTextField('title', TextInputStyle.Short, 256, placeholder)
+const contentTextField = (placeholder?: string) => myTextField('content', TextInputStyle.Paragraph, 1024, placeholder)
+const summaryTextField = (placeholder?: string) => myTextField('summary', TextInputStyle.Paragraph, 2048, placeholder)
+
+
 /////////////////////////
 /// Command Logic
 ///////////
@@ -230,43 +237,33 @@ export const rulesCommand = createCommand({
 
 		.addSubcommand(subcommand => subcommand
 			.setName('edit-summary')
-			.setDescription('Edit the rules summary')
-			.addStringOption(option => option
-				.setName('title')
-				.setDescription('Summary title'))
-			.addStringOption(option => option
-				.setName('content')
-				.setDescription('Summary content')))
+			.setDescription('Edit the rules summary'))
 
 		.addSubcommand(subcommand => subcommand
 			.setName('edit')
 			.setDescription('Edit a rule')
-			.addStringOption(option => ruleNumberOption(option, 'Rule to edit'))
-			.addStringOption(ruleTitleOption)
-			.addStringOption(ruleContentOption))
+			.addStringOption(ruleNumberOption('Rule to edit')))
 
 		.addSubcommand(subcommand => subcommand
 			.setName('add')
 			.setDescription('Add a rule')
-			.addStringOption(option => ruleSectionOption(option, 'Section to add to'))
-			.addStringOption(ruleTitleOption)
-			.addStringOption(ruleContentOption))
+			.addStringOption(ruleSectionOption('Section to add to')))
 
 		.addSubcommand(subcommand => subcommand
 			.setName('remove')
 			.setDescription('Remove a rule')
-			.addStringOption(option => ruleNumberOption(option, 'Rule to remove')))
+			.addStringOption(ruleNumberOption('Rule to remove')))
 
 		.addSubcommand(subcommand => subcommand
 			.setName('move')
 			.setDescription('Move a rule')
-			.addStringOption(option => ruleNumberOption(option, 'Rule to move', 'from'))
-			.addStringOption(option => ruleNumberOption(option, 'Position to move to', 'to')))
+			.addStringOption(ruleNumberOption('Rule to move', 'from'))
+			.addStringOption(ruleNumberOption('Position to move to', 'to')))
 
 		.addSubcommand(subcommand => subcommand
 			.setName('edit-section')
 			.setDescription('Edit a section\'s title')
-			.addStringOption(option => ruleSectionOption(option, 'Section to edit'))
+			.addStringOption(ruleSectionOption('Section to edit'))
 			.addStringOption(sectionTitleOption))
 
 		.addSubcommand(subcommand => subcommand
@@ -277,13 +274,13 @@ export const rulesCommand = createCommand({
 		.addSubcommand(subcommand => subcommand
 			.setName('remove-section')
 			.setDescription('Remove a section')
-			.addStringOption(option => ruleSectionOption(option, 'Section to remove')))
+			.addStringOption(ruleSectionOption('Section to remove')))
 
 		.addSubcommand(subcommand => subcommand
 			.setName('move-section')
 			.setDescription('Move a section')
-			.addStringOption(option => ruleSectionOption(option, 'Section to move', 'from'))
-			.addStringOption(option => ruleSectionOption(option, 'Letter to move to', 'to')))
+			.addStringOption(ruleSectionOption('Section to move', 'from'))
+			.addStringOption(ruleSectionOption('Letter to move to', 'to')))
 
 		.addSubcommand(subcommand => subcommand
 			.setName('test')
@@ -306,10 +303,8 @@ export const rulesCommand = createCommand({
 			.setDescription('Import rules')
 			.addAttachmentOption(option => option
 				.setName('import-file')
-				.setDescription('A file created from a rule export'))
-			.addStringOption(option => option
-				.setName('import-json')
-				.setDescription('JSON rules data'))),
+				.setDescription('A file created from a rule export')
+				.setRequired(true))),
 
 	async run(interaction) {
 
@@ -337,39 +332,62 @@ export const rulesCommand = createCommand({
 
 		switch (interaction.options.getSubcommand()) {
 			case 'edit-summary': {
-				config.title = interaction.options.getString('title') ?? config.title
-				config.summary = interaction.options.getString('summary') ?? config.summary
-				config.save()
-				return interaction.reply({
-					content: `Updated summary`,
-					embeds: getSummaryEmbed(),
-				})
+				const modalInteraction = await interaction.showModal(new CubeModalBuilder('rules-edit-summary')
+					.setTitle('Editing Rules Summary')
+					.addTextInput(titleTextField(config.title))
+					.addTextInput(summaryTextField(config.summary)))
+				if (modalInteraction) {
+					config.title = modalInteraction.fields.getTextInputValue('title')
+					config.summary = modalInteraction.fields.getTextInputValue('summary')
+					config.save()
+					return modalInteraction.reply({
+						content: `Updated summary`,
+						embeds: getSummaryEmbed(),
+					})
+				}
 			}
 			case 'edit': {
 				const ruleId = await getRuleIdOption('rule-number'); if (!ruleId) return
 				const rule = config.rules[ruleId.section].rules[ruleId.num]
-				rule.title = interaction.options.getString('title') ?? rule.title
-				rule.content = interaction.options.getString('content') ?? rule.content
-				config.rules[ruleId.section].rules[ruleId.num] = rule;
-				config.save()
-				return interaction.reply({
-					content: `Updated rule ${stringifyRuleId(ruleId)}`,
-					embeds: getRuleEmbed(rule),
-				})
-			} 
+				console.log(ruleId)
+				console.log(rule)
+				// console.log(`editing rule: ${rule.title}, ${rule.content}`)
+				const modalInteraction = await interaction.showModal(new CubeModalBuilder('rules-edit')
+					.setTitle(`Editing Rule ${stringifyRuleId(ruleId)}`)
+					.addTextInput(titleTextField(rule.title))
+					.addTextInput(contentTextField(rule.content)))
+				if (modalInteraction) {
+					rule.title = modalInteraction.fields.getTextInputValue('title')
+					rule.content = modalInteraction.fields.getTextInputValue('content')
+					config.rules[ruleId.section].rules[ruleId.num] = rule;
+					config.save()
+					return modalInteraction.reply({
+						content: `Updated rule ${stringifyRuleId(ruleId)}`,
+						embeds: getRuleEmbed(rule),
+					})
+				}
+			}
 			case 'add': {
 				const sectionId = await getSectionIdOption('section'); if (sectionId == null) return
-				const rule = {
-					title: interaction.options.getString('title') ?? '',
-					content: interaction.options.getString('content') ?? '',
+				const modalInteraction = await interaction.showModal(new CubeModalBuilder('rules-add')
+					.setTitle(`Adding Rule to Section ${stringifySection(sectionId)}`)
+					.addTextInput(titleTextField())
+					.addTextInput(contentTextField()))
+				if (modalInteraction) {
+					const rule = {
+						title: modalInteraction.fields.getTextInputValue('title'),
+						content: modalInteraction.fields.getTextInputValue('content'),
+					}
+					config.rules[sectionId].rules.push(rule)
+					config.save()
+					return modalInteraction.reply({
+						content: `Added rule ${stringifyRuleId({ 
+							section: sectionId, 
+							num: config.rules[sectionId].rules.length 
+						})}`,
+						embeds: getRuleEmbed(rule),
+					})
 				}
-				console.log(`adding to section ${sectionId}`)
-				config.rules[sectionId].rules.push(rule)
-				config.save()
-				return interaction.reply({
-					content: `Added rule ${stringifyRuleId({section: sectionId, num: config.rules[sectionId].rules.length-1})}`,
-					embeds: getRuleEmbed(rule),
-				})
 			} 
 			case 'remove': {
 				const ruleId = await getRuleIdOption('rule-number'); if (!ruleId) return
@@ -455,18 +473,10 @@ export const rulesCommand = createCommand({
 				}]})
 			}
 			case 'import': {
-				const attachment = interaction.options.getAttachment('import-file')
-				const text = interaction.options.getString('import-json')
-				let success = false
-				if (attachment) {
-					if (attachment.size > 1_000_000) return interaction.replyEphemeral('File is to big!')
-					success = saveRulesImport(await readUrl(attachment.url))
-				} else if (text) {
-					success = saveRulesImport(text?.replace(/^[\s`]+|[\s`]+$/g, ''))
-				} else {
-					return interaction.replyEphemeral('Please attach a json file to import')
-				}
-				if (!success) return interaction.replyEphemeral('Incorrect format!')
+				const attachment = interaction.options.getAttachment('import-file', true)
+				if (attachment.size > 1_000_000) return interaction.replyEphemeral('File is to big!')
+				if (!saveRulesImport(await readUrl(attachment.url))) 
+					return interaction.replyEphemeral('Incorrect format!')
 				return interaction.reply({
 					content: 'old rules:',
 					files: [{
