@@ -1,0 +1,23 @@
+{
+  "name": "cube-bot",
+  "version": "2.0.0",
+  "description": "Discord bot for the anime club at UT Austin",
+  "main": "out/bot.js",
+  "scripts": {
+    "test": "node .",
+    "start": "out/deploy-commands.js; node ."
+  },
+  "author": "Anime Club at UT Austin",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/common-tags": "^1.8.1",
+    "typescript": "^4.7.4"
+  },
+  "dependencies": {
+    "@discordjs/rest": "^1.0.1",
+    "common-tags": "^1.8.2",
+    "discord-api-types": "^0.37.1",
+    "discord.js": "^14.1.2",
+    "dotenv": "^16.0.1"
+  }
+}
