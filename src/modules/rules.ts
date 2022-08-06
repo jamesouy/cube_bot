@@ -325,16 +325,13 @@ export const rulesCommand = createCommand({
 				return interaction.replyEphemeral(`Rule "${ruleIdStr}" is out of range`).then(() => null)
 			return ruleId
 		}
-		async function getSectionIdOption(name: string, insert = false): Promise<number | null> {
+		function getSectionIdOption(name: string, insert = false): number | Promise<null> {
 			const sectionIdStr = interaction.options.getString(name) ?? ''
 			const sectionId = parseSectionLetter(sectionIdStr) as number
-			if (sectionId == null) {
-				interaction.replyEphemeral(`Invalid section "${sectionIdStr}"`)
-				return null
-			} else if (!isSectionInRange(sectionId, insert)) {
-				interaction.replyEphemeral(`Section "${sectionIdStr}" is out of range`)
-				return null
-			}
+			if (sectionId == null)
+				return interaction.replyEphemeral(`Invalid section "${sectionIdStr}"`).then(() => null)
+			else if (!isSectionInRange(sectionId, insert))
+				return interaction.replyEphemeral(`Section "${sectionIdStr}" is out of range`).then(() => null)
 			return sectionId
 		}
 
@@ -361,11 +358,12 @@ export const rulesCommand = createCommand({
 				})
 			} 
 			case 'add': {
-				const sectionId = await getSectionIdOption('section'); if (!sectionId) return
+				const sectionId = await getSectionIdOption('section'); if (sectionId == null) return
 				const rule = {
 					title: interaction.options.getString('title') ?? '',
 					content: interaction.options.getString('content') ?? '',
 				}
+				console.log(`adding to section ${sectionId}`)
 				config.rules[sectionId].rules.push(rule)
 				config.save()
 				return interaction.reply({
@@ -394,7 +392,7 @@ export const rulesCommand = createCommand({
 				})
 			}
 			case 'edit-section': {
-				const sectionId = await getSectionIdOption('section'); if (!sectionId) return
+				const sectionId = await getSectionIdOption('section'); if (sectionId == null) return
 				config.rules[sectionId].title = interaction.options.getString('title') ?? config.rules[sectionId].title
 				config.save()
 				return interaction.reply({
@@ -412,7 +410,7 @@ export const rulesCommand = createCommand({
 				})
 			}
 			case 'remove-section': {
-				const sectionId = await getSectionIdOption('section'); if (!sectionId) return
+				const sectionId = await getSectionIdOption('section'); if (sectionId == null) return
 				const section = config.rules.splice(sectionId, 1)[0]
 				config.save()
 				return interaction.reply({
@@ -421,9 +419,9 @@ export const rulesCommand = createCommand({
 				})
 			}
 			case 'move-section': {
-				const from = await getSectionIdOption('from'); if (!from) return
+				const from = await getSectionIdOption('from'); if (from == null) return
 				const section = config.rules.splice(from, 1)[0]
-				const to = await getSectionIdOption('to', true); if (!to) return
+				const to = await getSectionIdOption('to', true); if (to == null) return
 				config.rules.splice(to, 0, section)
 				config.save()
 				return interaction.reply({
