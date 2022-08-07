@@ -5,8 +5,6 @@ import {
 	Message, 
 	Guild, 
 	ChannelType,
-	ModalBuilder,
-	ActionRowBuilder,
 	TextInputBuilder,
 	TextInputStyle,
 } from 'discord.js'
@@ -15,7 +13,6 @@ import { createCommand } from "../bot-framework/command";
 import { createConfigInitializer } from '../bot-framework/initializer';
 import { CubeMessage, CubeModalBuilder, CubeTextChannel } from '../util/discord'
 import { capitalize, readUrl } from '../util';
-// import { createModal } from '../bot-framework/modal';
 
 
 //////////////////
@@ -103,28 +100,24 @@ function isRulesExport(obj: any): obj is RulesExport {
 /////////////////////
 /// Rule Embeds
 /////////
-function getSummaryEmbed() {
-	return [{ 
+const getSummaryEmbed = () => [{ 
 		title: config.title.trim() || 'title not set', 
 		description: config.summary.trim() || 'summary not set'
 	}]
-}
-function getRuleEmbed({title, content}: Rule) {
-	return [{ title: title.trim() || 'title not set', description: content.trim() || 'content not set' }]
-}
-function getSectionTitleEmbed(title: string) {
-	return [{ title: title.trim() || 'title not set' }]
-}
-function getSectionEmbed(section: number, {title, rules}: Section = config.rules[section]) {
-	return [{
-		title: title.trim() || 'no section title set',
-		fields: rules.map(({title, content}, num) => { return {
-			name: `Rule ${stringifyRuleId({section, num})}: ${title.trim() || 'no rule title set'}`, 
-			value: content.trim() || 'no rule content set', 
-			inline: false,
-		}})
-	}]
-}
+const getRuleEmbed = ({title, content}: Rule) => [{ 
+	title: title.trim() || 'title not set', 
+	description: content.trim() || 'content not set' 
+}]
+const getSectionTitleEmbed = (title: string) => [{ title: title.trim() || 'title not set' }]
+const getSectionEmbed = (section: number, {title, rules}: Section = config.rules[section]) => [{
+	title: title.trim() || 'no section title set',
+	fields: rules.map(({title, content}, num) => { return {
+		name: `Rule ${stringifyRuleId({section, num})}: ${title.trim() || 'no rule title set'}`, 
+		value: content.trim() || 'no rule content set', 
+		inline: false,
+	}})
+}]
+
 
 async function sendRules(channel: CubeTextChannel): Promise<Message[]> {
 	const messages: Message[] = []
@@ -168,6 +161,7 @@ function getRulesExport(): Buffer {
 	}
 	return Buffer.from(JSON.stringify(data, null, 4))
 }
+// returns false if given data is invalid
 function saveRulesImport(data: string): boolean {
 	try {
 		const obj = JSON.parse(data)
@@ -186,22 +180,17 @@ function saveRulesImport(data: string): boolean {
 ///////////////////////////
 /// Custom Slash Command Options
 ///////////
-const ruleNumberOption = (description: string, name = 'rule-number') => 
-new SlashCommandStringOption()
-	.setName(name)
-	.setDescription(`${description} (B.2 would be section B rule 2)`)
-	.setRequired(true)
-
-const ruleSectionOption = (description: string, name = 'section') => 
+const myStringOption = (name: string, description: string) =>
 new SlashCommandStringOption()
 	.setName(name)
 	.setDescription(description)
 	.setRequired(true)
 
-const sectionTitleOption = () => new SlashCommandStringOption()
-	.setName('title')
-	.setDescription('Section title')
-	.setRequired(true)
+const ruleNumberOption = (description: string, name = 'rule-number') => 
+	myStringOption(name, `${description} (B.2 would be section B rule 2)`)
+const ruleSectionOption = (description: string, name = 'section') => myStringOption(name, description)
+const sectionTitleOption = () => myStringOption('title', 'Section title')
+
 
 //////////////////////
 /// Modal Fields
@@ -462,6 +451,7 @@ export const rulesCommand = createCommand({
 				config.messages = (await sendRules(new CubeTextChannel(channel))).map(message => message.id)
 				config.channel = channel.id
 				config.save()
+				return
 			}
 			case 'export': {
 				return interaction.reply({files: [{
