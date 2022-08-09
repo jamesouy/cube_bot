@@ -9,10 +9,10 @@ import {
 	TextInputStyle,
 } from 'discord.js'
 
-import { createCommand } from "../bot-framework/command";
-import { createConfigInitializer } from '../bot-framework/initializer';
+import { Command } from "../bot-framework/interactions";
+import { ConfigInitializer } from '../bot-framework/initializer';
 import { CubeMessage, CubeModalBuilder, CubeTextChannel } from '../util/discord'
-import { capitalize, readUrl } from '../util';
+import { capitalize, readUrl, UserError } from '../util';
 
 
 //////////////////
@@ -213,9 +213,9 @@ const summaryTextField = (placeholder?: string) => myTextField('summary', TextIn
 /// Command Logic
 ///////////
 
-export const config = createConfigInitializer<RulesConfig>('rules.json')
+export const config = ConfigInitializer.create<RulesConfig>('rules.json')
 
-export const rulesCommand = createCommand({
+export const rulesCommand = new Command({
 	name: 'Rules',
 	detail: `Details stuff`,
 	builder: new SlashCommandBuilder()
@@ -294,34 +294,44 @@ export const rulesCommand = createCommand({
 				.setName('import-file')
 				.setDescription('A file created from a rule export')
 				.setRequired(true))),
+		
+	ephemeral(interaction) {
+		const subcommand = interaction.options.getSubcommand()
+		if ([
+			'edit-summary', 'edit', 'add', 'remove', 'move', 
+			'edit-section', 'add-section', 'remove-section', 'move-section',
+			'export', 'import'
+		].includes(subcommand)) return true
+		else return false
+	},
 
 	async run(interaction) {
 
 		//////////////////////////////////////////
 		/// Slash command option getter functions
 		/////////////////
-		function getRuleIdOption(name: string, insert = false): RuleID | Promise<null> {
+		function getRuleIdOption(name: string, insert = false): RuleID {
 			const ruleIdStr = interaction.options.getString(name) ?? ''
 			const ruleId = parseRuleNum(ruleIdStr) as RuleID
 			if (!ruleId) 
-				return interaction.replyEphemeral(`Invalid rule format "${ruleIdStr}"`).then(() => null)
+				throw new UserError(`Invalid rule format "${ruleIdStr}"`)
 			else if (!isRuleInRange(ruleId, insert)) 
-				return interaction.replyEphemeral(`Rule "${ruleIdStr}" is out of range`).then(() => null)
+				throw new UserError(`Rule "${ruleIdStr}" is out of range`)
 			return ruleId
 		}
-		function getSectionIdOption(name: string, insert = false): number | Promise<null> {
+		function getSectionIdOption(name: string, insert = false): number {
 			const sectionIdStr = interaction.options.getString(name) ?? ''
 			const sectionId = parseSectionLetter(sectionIdStr) as number
-			if (sectionId == null)
-				return interaction.replyEphemeral(`Invalid section "${sectionIdStr}"`).then(() => null)
-			else if (!isSectionInRange(sectionId, insert))
-				return interaction.replyEphemeral(`Section "${sectionIdStr}" is out of range`).then(() => null)
+			if (sectionId == null) 
+				throw new UserError(`Invalid section "${sectionIdStr}"`)
+			else if (!isSectionInRange(sectionId, insert)) 
+				throw new UserError(`Section "${sectionIdStr}" is out of range`)
 			return sectionId
 		}
 
 		switch (interaction.options.getSubcommand()) {
 			case 'edit-summary': {
-				const modalInteraction = await interaction.showModal(new CubeModalBuilder('rules-edit-summary')
+				const modalInteraction = await interaction.awaitModal(new CubeModalBuilder('rules-edit-summary')
 					.setTitle('Editing Rules Summary')
 					.addTextInput(titleTextField(config.title))
 					.addTextInput(summaryTextField(config.summary)))
@@ -336,9 +346,9 @@ export const rulesCommand = createCommand({
 				}
 			}
 			case 'edit': {
-				const ruleId = await getRuleIdOption('rule-number'); if (!ruleId) return
+				const ruleId = getRuleIdOption('rule-number')
 				const rule = config.rules[ruleId.section].rules[ruleId.num]
-				const modalInteraction = await interaction.showModal(new CubeModalBuilder('rules-edit')
+				const modalInteraction = await interaction.awaitModal(new CubeModalBuilder('rules-edit')
 					.setTitle(`Editing Rule ${stringifyRuleId(ruleId)}`)
 					.addTextInput(titleTextField(rule.title))
 					.addTextInput(contentTextField(rule.content)))
@@ -354,8 +364,8 @@ export const rulesCommand = createCommand({
 				}
 			}
 			case 'add': {
-				const sectionId = await getSectionIdOption('section'); if (sectionId == null) return
-				const modalInteraction = await interaction.showModal(new CubeModalBuilder('rules-add')
+				const sectionId = getSectionIdOption('section')
+				const modalInteraction = await interaction.awaitModal(new CubeModalBuilder('rules-add')
 					.setTitle(`Adding Rule to Section ${stringifySection(sectionId)}`)
 					.addTextInput(titleTextField())
 					.addTextInput(contentTextField()))
@@ -376,7 +386,7 @@ export const rulesCommand = createCommand({
 				}
 			} 
 			case 'remove': {
-				const ruleId = await getRuleIdOption('rule-number'); if (!ruleId) return
+				const ruleId = getRuleIdOption('rule-number')
 				const rule = config.rules[ruleId.section].rules.splice(ruleId.num, 1)[0]
 				config.save()
 				return interaction.reply({
@@ -385,9 +395,9 @@ export const rulesCommand = createCommand({
 				})
 			} 
 			case 'move': {
-				const ruleFrom = await getRuleIdOption('from'); if (!ruleFrom) return
+				const ruleFrom = getRuleIdOption('from')
 				const rule = config.rules[ruleFrom.section].rules.splice(ruleFrom.num, 1)[0]
-				const ruleTo = await getRuleIdOption('to', true); if (!ruleTo) return
+				const ruleTo = getRuleIdOption('to', true)
 				config.rules[ruleTo.section].rules.splice(ruleTo.num, 0, rule)
 				config.save()
 				return interaction.reply({
@@ -396,7 +406,7 @@ export const rulesCommand = createCommand({
 				})
 			}
 			case 'edit-section': {
-				const sectionId = await getSectionIdOption('section'); if (sectionId == null) return
+				const sectionId = getSectionIdOption('section')
 				config.rules[sectionId].title = interaction.options.getString('title') ?? config.rules[sectionId].title
 				config.save()
 				return interaction.reply({
@@ -414,7 +424,7 @@ export const rulesCommand = createCommand({
 				})
 			}
 			case 'remove-section': {
-				const sectionId = await getSectionIdOption('section'); if (sectionId == null) return
+				const sectionId = getSectionIdOption('section')
 				const section = config.rules.splice(sectionId, 1)[0]
 				config.save()
 				return interaction.reply({
@@ -423,9 +433,9 @@ export const rulesCommand = createCommand({
 				})
 			}
 			case 'move-section': {
-				const from = await getSectionIdOption('from'); if (from == null) return
+				const from = getSectionIdOption('from')
 				const section = config.rules.splice(from, 1)[0]
-				const to = await getSectionIdOption('to', true); if (to == null) return
+				const to = getSectionIdOption('to', true)
 				config.rules.splice(to, 0, section)
 				config.save()
 				return interaction.reply({
@@ -435,7 +445,7 @@ export const rulesCommand = createCommand({
 			}
 			case 'test': {
 				if (interaction.channel) return sendRules(interaction.channel)
-				else return interaction.replyEphemeral('Oops! Couldn\'t find this channel. Try using the command again')
+				else return new UserError('Oops! Couldn\'t find this channel. Try using the command again')
 			}
 			case 'publish': {
 				const messages = await fetchPublishedMessages(interaction.guild ?? undefined)
@@ -446,8 +456,8 @@ export const rulesCommand = createCommand({
 					return
 				}
 				const channel = await interaction.getChannelOption('channel')
-				if (!channel) return interaction.replyEphemeral('No channel to publish to!')
-				if (!channel.isTextBased()) return interaction.replyEphemeral('Not a text chanel!')
+				if (!channel) throw new UserError('No channel to publish to!', true)
+				if (!channel.isTextBased()) throw new UserError('Not a text chanel!', true)
 				config.messages = (await sendRules(new CubeTextChannel(channel))).map(message => message.id)
 				config.channel = channel.id
 				config.save()
@@ -461,9 +471,8 @@ export const rulesCommand = createCommand({
 			}
 			case 'import': {
 				const attachment = interaction.options.getAttachment('import-file', true)
-				if (attachment.size > 1_000_000) return interaction.replyEphemeral('File is to big!')
-				if (!saveRulesImport(await readUrl(attachment.url))) 
-					return interaction.replyEphemeral('Incorrect format!')
+				if (attachment.size > 1_000_000) throw new UserError('File is to big!')
+				if (!saveRulesImport(await readUrl(attachment.url))) throw new UserError('Incorrect format!')
 				return interaction.reply({
 					content: 'old rules:',
 					files: [{
@@ -473,7 +482,7 @@ export const rulesCommand = createCommand({
 				})
 			}
 			default:
-				return interaction.reply('Oops! Subcommand not implemented')
+				throw new UserError('Oops! Subcommand not implemented', true)
 		}
 	}
 })

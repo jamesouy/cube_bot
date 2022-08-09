@@ -1,4 +1,5 @@
-import { Command } from './bot-framework/command'
+import { Collection } from 'discord.js';
+import { Command } from './bot-framework/interactions'
 
 
 declare global {
@@ -17,6 +18,6 @@ declare global {
 
 declare module "discord.js" {
 	interface Client {
-		commands: Command[]
+		commands: Collection<string, Command>
 	}
 }

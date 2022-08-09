@@ -24,17 +24,18 @@ import {
 	Interaction,
 	ModalSubmitInteraction,
 	AwaitModalSubmitOptions,
+	ButtonInteraction,
+	ButtonBuilder,
 } from 'discord.js'
+import { UserError } from '.'
 
-import { Awaitable } from './index'
 
-
-type RespondOptions = string | (Omit<InteractionReplyOptions, 'embeds'> & { embeds?: APIEmbed[] })
+type ReplyOptions = string | (Omit<InteractionReplyOptions, 'embeds'> & { embeds?: APIEmbed[] })
 type SendOptions = string | (Omit<MessageOptions, 'embeds'> & { embeds?: APIEmbed[] })
 type EditOptions = string | (Omit<MessageEditOptions, 'embeds'> & { embeds?: APIEmbed[] })
 
 // Changes the default color of embeds
-function setEmbedColor<T extends RespondOptions | SendOptions | EditOptions>(options: T): T {
+function setEmbedColor<T extends ReplyOptions | SendOptions | EditOptions>(options: T): T {
 	if (typeof options !== 'string' && options.embeds)
 		for (const i in options.embeds)
 			options.embeds[i].color ??= 0x4CA8F7
@@ -78,45 +79,53 @@ export class CubeModalBuilder {
 
 
 // Wrapper classes for Interaction
-class CubeBaseInteraction {
-	constructor(readonly base: ChatInputCommandInteraction | ModalSubmitInteraction) {}
+export abstract class CubeBaseInteraction {
+	constructor(readonly base: ChatInputCommandInteraction | ModalSubmitInteraction | ButtonInteraction) {}
 
 	get replied() { return this.base.replied }
+	get deferred() { return this.base.deferred }
 	get channel() { return this.base.channel ? new CubeTextChannel(this.base.channel) : null }
 	get guild() { return this.base.guild }
 	get client() { return this.base.client }
 
-	// reply only if had not replied yet
-	replyFirst(options: RespondOptions) {
-		if (!this.replied) return this.reply(options)
-	}
-
-	// reply or follow up
-	reply(options: RespondOptions) {
+	/** Reply or follow up */
+	reply(options: ReplyOptions) {
 		options = setEmbedColor(options)
 		if (this.replied) return this.base.followUp(options)
 		else return this.base.reply(options)
 	}
-
-	replyEphemeral(options: RespondOptions) {
+	/** Reply or follow up privately */
+	replyEphemeral(options: ReplyOptions) {
 		if (typeof options === 'string') return this.reply({ content: options, ephemeral: true })
 		else return this.reply({ ...options, ephemeral: true })
 	}
-}
-export class CubeChatInputCommandInteraction extends CubeBaseInteraction {
-	constructor(readonly base: ChatInputCommandInteraction) { super(base) }
 
-	get commandName() { return this.base.commandName }
-	get options() { return this.base.options }
+	defer = () => this.base.deferReply({ fetchReply: true })
+	deferEphemeral = () => this.base.deferReply({ ephemeral: true, fetchReply: true })
 
-	getChannelOption(name: string, required = false): Awaitable<GuildBasedChannel | null> {
-		const channel = this.options.getChannel(name, required)
-		if (!channel) return null
-		if (!(channel instanceof GuildChannel)) return this.guild?.channels.fetch(channel.id) ?? null
-		return channel
+	editReply = (options: ReplyOptions) => this.base.editReply(options)
+
+	replyError(err: unknown, ephemeral?: boolean) {
+		if (err instanceof UserError)
+			return this.reply({ 
+				content: err.message, 
+				ephemeral: err.ephemeral ?? ephemeral ?? false 
+			})
+		else {
+			console.error(`Error on interaction`, this.base, err)
+			return this.reply({ 
+				content: 'Oh no! Error encountered :(', 
+				ephemeral: ephemeral ?? false
+			})
+		}
 	}
+}
+abstract class CubeNonModalInteraction extends CubeBaseInteraction {
+	constructor(readonly base: ChatInputCommandInteraction | ButtonInteraction) { super(base) }
 
-	async showModal(modal: CubeModalBuilder, timeout = 300_000) {
+	showModal = (modal: CubeModalBuilder) => this.base.showModal(modal.base)
+
+	async awaitModal(modal: CubeModalBuilder, timeout = 300_000) {
 		await this.base.showModal(modal.base)
 		const interaction = await this.base.awaitModalSubmit({
 			filter: interaction => interaction.customId === modal.customId
@@ -130,9 +139,42 @@ export class CubeChatInputCommandInteraction extends CubeBaseInteraction {
 		return new CubeModalSubmitInteraction(interaction)
 	}
 }
+export class CubeChatInputCommandInteraction extends CubeNonModalInteraction {
+	constructor(readonly base: ChatInputCommandInteraction) { super(base) }
+
+	get commandName() { return this.base.commandName }
+	get options() { return this.base.options }
+
+	getChannelOption(name: string, required: true): Promise<GuildBasedChannel>
+	getChannelOption(name: string, required?: boolean): Promise<GuildBasedChannel | null>
+	/** Throws a user input error if the channel could not be found */
+	async getChannelOption(name: string, required?: boolean): Promise<GuildBasedChannel | null> {
+		let channel = this.options.getChannel(name, required)
+		if (channel && !(channel instanceof GuildChannel)) {
+			channel = await this.guild?.channels.fetch(channel.id) ?? null
+			if (!channel) throw new UserError('Oops! Having trouble finding that channel. Please try again')
+		}
+		return channel
+	}
+
+	getTextChannelOption(name: string, required: true): Promise<CubeTextChannel>
+	getTextChannelOption(name: string, required?: boolean): Promise<CubeTextChannel | null>
+	async getTextChannelOption(name: string, required?: boolean) {
+		const channel = await this.getChannelOption(name, required)
+		if (!channel) return null
+		if (!channel.isTextBased()) {
+			if (required) throw new UserError('Channel is not text based!')
+			else return null
+		}
+		return new CubeTextChannel(channel)
+	}
+}
+export class CubeButtonInteraction extends CubeNonModalInteraction {
+	constructor(readonly base: ButtonInteraction) { super(base) }
+	get customId() { return this.base.customId }
+}
 export class CubeModalSubmitInteraction extends CubeBaseInteraction {
 	constructor(readonly base: ModalSubmitInteraction) { super(base) }
-
 	get customId() { return this.base.customId }
 	get fields() { return this.base.fields }
 }

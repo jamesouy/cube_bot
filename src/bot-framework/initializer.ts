@@ -1,4 +1,5 @@
-import { Awaitable, Constructor, getAllOfType, loadConfig, saveConfig } from '../util'
+import { Awaitable } from 'discord.js'
+import { Constructor, getAllOfType, loadConfig, saveConfig } from '../util'
 import { join } from 'path'
 
 
@@ -15,19 +16,14 @@ export function getAllInitializers() {
 /// Used to perform operations when the bot starts up
 ////////////////////////
 export class Initializer {
+	/**
+	 * Run a function when the bot starts up.
+	 * If an error occurs while running the function, the bot startup will be terminated
+	 * @param run 
+	 * @returns 
+	 */
 	constructor(readonly run: () => Awaitable<any>) {}
 }
-
-/**
- * Run a function when the bot starts up.
- * If an error occurs while running the function, the bot startup will be terminated
- * @param run 
- * @returns 
- */
-export function createInitializer(run: () => Awaitable<any>) {
-	return new Initializer(run)
-}
-
 
 
 ///////////////////////////////////////////////////
@@ -35,9 +31,13 @@ export function createInitializer(run: () => Awaitable<any>) {
 /// Loads a config file when the bot starts up
 ///////////////////
 const configInitializerKeys = ['run', 'save'] as (keyof ConfigInitializer)[]
-class ConfigInitializer extends Initializer {
+export class ConfigInitializer extends Initializer {
 	readonly save: () => Promise<any>
-	constructor(file: string) {
+	/**
+	 * Creates an object that is set from a config file when the bot starts up
+	 * @param file The config file to read from
+	 */
+	private constructor(file: string) {
 		super(async () => {
 			const config = await loadConfig(file)
 			for (const key in config) {
@@ -55,12 +55,5 @@ class ConfigInitializer extends Initializer {
 			return saveConfig(obj, file)
 		}
 	}
-}
-
-/**
- * Creates an object that is set from a config file when the bot starts up
- * @param file The config file to read from
- */
-export function createConfigInitializer<T>(file: string): T & ConfigInitializer {
-	return new ConfigInitializer(file) as T & ConfigInitializer
+	static create = <T>(file: string) => new ConfigInitializer(file) as T & ConfigInitializer
 }

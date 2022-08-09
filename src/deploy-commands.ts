@@ -3,7 +3,7 @@ import { REST } from '@discordjs/rest'
 import { Routes } from 'discord.js'
 import * as dotenv from "dotenv"
 
-import { getAllCommands } from './bot-framework/command';
+import { getAllCommands } from './bot-framework/interactions';
 
 dotenv.config()
 
