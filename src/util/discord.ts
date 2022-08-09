@@ -192,6 +192,8 @@ export class CubeMessage {
 export class CubeTextChannel {
 	constructor(readonly base: TextBasedChannel) {}
 
+	get id() { return this.base.id }
+
 	send(options: SendOptions) {
 		return this.base.send(setEmbedColor(options))
 	}

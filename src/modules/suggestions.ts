@@ -1,7 +1,6 @@
-import { ActionRowBuilder, ButtonBuilder, ButtonComponent, ButtonStyle, ChannelType, PermissionFlagsBits, SlashCommandBuilder, SlashCommandSubcommandBuilder, TextInputBuilder, TextInputStyle } from "discord.js";
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, PermissionFlagsBits, SlashCommandBuilder, SlashCommandSubcommandBuilder, TextInputBuilder, TextInputStyle } from "discord.js";
 import { Command, Button, Modal } from "../bot-framework/interactions";
 import { CubeModalBuilder } from "../util/discord";
-import { setTimeout } from 'timers/promises'
 
 export const anonymousSuggestionModal = new Modal({
 	builder: new CubeModalBuilder('anonymous-suggestion')
@@ -15,9 +14,13 @@ export const anonymousSuggestionModal = new Modal({
 	async run(interaction) {
 		const suggestion = interaction.fields.getTextInputValue('suggestion')
 		await interaction.deferEphemeral()
+		
 		await interaction.channel?.send({ embeds: [{
 			title: 'New Anonymous Suggestion',
 			description: suggestion,
+			footer: {
+				text: `Send your own anonymous suggestion by going to the pinned message!`
+			}
 		}]})
 	},
 })
@@ -48,7 +51,7 @@ export const suggestionsChannelCommand = new Command({
 		const channel = await interaction.getTextChannelOption('channel', true)
 		await channel.send({
 			embeds: [{
-				description: 'Click on this button to send a suggestion anonymously!'
+				description: 'Click on the button under this message to send a suggestion anonymously!'
 			}],
 			components: [new ActionRowBuilder<ButtonBuilder>()
 				.addComponents(anonymousSuggestionButton.builder)]

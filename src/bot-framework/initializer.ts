@@ -1,5 +1,5 @@
 import { Awaitable } from 'discord.js'
-import { Constructor, getAllOfType, loadConfig, saveConfig } from '../util'
+import { getAllOfType, loadConfig, saveConfig } from '../util'
 import { join } from 'path'
 
 
@@ -19,8 +19,8 @@ export class Initializer {
 	/**
 	 * Run a function when the bot starts up.
 	 * If an error occurs while running the function, the bot startup will be terminated
-	 * @param run 
-	 * @returns 
+	 * @param run
+	 * @returns
 	 */
 	constructor(readonly run: () => Awaitable<any>) {}
 }
