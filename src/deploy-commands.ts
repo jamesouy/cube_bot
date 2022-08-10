@@ -1,13 +1,15 @@
 import { stripIndents } from 'common-tags'
+import { join } from 'path'
 import { REST } from '@discordjs/rest'
 import { Routes } from 'discord.js'
 import * as dotenv from "dotenv"
 
-import { getAllCommands } from './bot-framework/interactions';
+import { BaseCommand, Command, ContextMenu } from 'bot-framework';
+import { getAllOfType } from 'utils';
 
 dotenv.config()
 
-getAllCommands().then(commands => {
+getAllOfType(BaseCommand, join(__dirname, 'modules')).then(commands => {
 	const rest = new REST({ version: '10' }).setToken(process.env.BOT_TOKEN);
 	
 	// delete all commands
@@ -23,9 +25,16 @@ getAllCommands().then(commands => {
 	/// Register commands
 	rest.put(Routes.applicationCommands(process.env.CLIENT_ID), { 
 		body: commands.map(command => command.getData())
-	}).then(() => console.log(stripIndents`
-		Registered ${commands.length} commands: 
-		${commands.map(command => command.name).join(', ')}
-	`)).catch(console.error);
-
+	}).then(() => {
+		const slashCommands = commands.filter(command => command instanceof Command)
+		console.log(stripIndents`
+			Registered ${slashCommands.length} commands: 
+			${slashCommands.map(command => command.name).join(', ')}
+		`)
+		const contextMenus = commands.filter(command => command instanceof ContextMenu)
+		console.log(stripIndents`
+			Registered ${contextMenus.length} context menus: 
+			${contextMenus.map(command => command.name).join(', ')}
+		`)
+	}).catch(console.error);
 })

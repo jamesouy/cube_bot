@@ -1,5 +1,6 @@
 import { Awaitable } from 'discord.js'
-import { getAllOfType, loadConfig, saveConfig } from '../util'
+import { getAllOfType } from 'utils'
+import { readFile, writeFile, readdir } from 'fs/promises'
 import { join } from 'path'
 
 
@@ -39,7 +40,8 @@ export class ConfigInitializer extends Initializer {
 	 */
 	private constructor(file: string) {
 		super(async () => {
-			const config = await loadConfig(file)
+			const config = await readFile(`./config/${file}`)
+				.then(content => JSON.parse(content.toString()))
 			for (const key in config) {
 				if (key in this) 
 					throw new Error(`Cannot use the reserved property ${key} in ${file}`)
@@ -52,7 +54,7 @@ export class ConfigInitializer extends Initializer {
 			for (const key in this)
 				if (!(configInitializerKeys as string[]).includes(key))
 					obj[key] = this[key]
-			return saveConfig(obj, file)
+			return writeFile(`./config/${file}`, JSON.stringify(obj, null, 4))
 		}
 	}
 	static create = <T>(file: string) => new ConfigInitializer(file) as T & ConfigInitializer

@@ -1,13 +1,28 @@
 import { Client, Collection, GatewayIntentBits } from "discord.js"
 import * as dotenv from "dotenv"
-
-import { getAllCommands, Button, getAllButtons, Modal, getAllModals } from './bot-framework/interactions'
-import { getAllInitializers } from './bot-framework/initializer'
-import { CubeBaseInteraction, CubeButtonInteraction, CubeChatInputCommandInteraction, CubeModalSubmitInteraction } from "./util/discord"
+import { 
+	getAllCommands, 
+	Button, 
+	getAllButtons, 
+	Modal, 
+	getAllModals, 
+	ContextMenu, 
+	getAllContextMenus, 
+	getAllInitializers, 
+	UserError 
+} from 'bot-framework'
+import { 
+	CubeBaseInteraction, 
+	CubeButtonInteraction, 
+	CubeCommandInteraction, 
+	CubeContextMenuInteraction, 
+	CubeModalSubmitInteraction,
+} from "discord-wrappers"
 
 dotenv.config()
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds]})
+let contextMenus: Collection<string, ContextMenu>
 let buttons: Collection<string, Button>
 let modals: Collection<string, Modal>
 
@@ -20,6 +35,7 @@ getAllInitializers().then(async initializers => {
 			await initializer.run()
 
 		client.commands = new Collection((await getAllCommands()).map(command => [command.commandName, command]))
+		contextMenus = new Collection((await getAllContextMenus()).map(contextMenu => [contextMenu.commandName, contextMenu]))
 		buttons = new Collection((await getAllButtons()).map(button => [button.customId, button]))
 		modals = new Collection((await getAllModals()).map(modal => [modal.customId, modal]))
 
@@ -38,20 +54,27 @@ client.once('ready', () => {
 client.on('interactionCreate', async interaction => {
 
 	async function runInteraction<I extends CubeBaseInteraction>(
-		interaction: I, 
-		run: (interaction: I) => any,
-		ephemeral?: boolean,
-		doneMessage = 'Done'
+		interaction: I, run: (interaction: I) => any, ephemeral?: boolean, doneMessage = 'Done'
 	) {
 		try {
 			await run(interaction)
-			if (interaction.deferred) return interaction.editReply(doneMessage)
 			if (!interaction.replied) return interaction.reply({ 
 				content: doneMessage, 
 				ephemeral: ephemeral ?? false
 			})
 		} catch (err) {
-			await interaction.replyError(err, ephemeral)
+			if (err instanceof UserError)
+				return interaction.reply({ 
+					content: err.message, 
+					ephemeral: err.ephemeral ?? ephemeral ?? false 
+				})
+			else {
+				console.error(`Error on interaction`, err)
+				return interaction.reply({ 
+					content: 'Oh no! Error encountered :(', 
+					ephemeral: ephemeral ?? false
+				})
+			}
 		}
 	}
 
@@ -59,12 +82,22 @@ client.on('interactionCreate', async interaction => {
 	/// Slash Commands
 	////////
 	if (interaction.isChatInputCommand()) {
-		const i = new CubeChatInputCommandInteraction(interaction)
+		const i = new CubeCommandInteraction(interaction)
 		const command = client.commands.get(i.commandName)
 		if (command) {
 			await runInteraction(i, command.run, command.ephemeral(i))
 		} else {
 			await i.reply('Oh no! It seems that this command has been removed. Please contact a moderator')
+		}
+	}
+
+	else if (interaction.isContextMenuCommand()) {
+		const i = new CubeContextMenuInteraction(interaction)
+		const command = contextMenus.get(i.commandName)
+		if (command) {
+			await runInteraction(i, command.run, command.ephemeral)
+		} else {
+			await i.reply('Oh no! It seems that this context menu has been removed. Please contact a moderator')
 		}
 	}
 

@@ -1,5 +1,5 @@
 import { Collection } from 'discord.js';
-import { Command } from './bot-framework/interactions'
+import { Command } from 'bot-framework'
 
 
 declare global {

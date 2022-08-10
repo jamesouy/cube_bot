@@ -1,9 +1,10 @@
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, PermissionFlagsBits, SlashCommandBuilder, SlashCommandSubcommandBuilder, TextInputBuilder, TextInputStyle } from "discord.js";
-import { Command, Button, Modal } from "../bot-framework/interactions";
-import { CubeModalBuilder } from "../util/discord";
+import { Command, Button, Modal } from "../bot-framework/interaction-listeners";
+import { CubeModalBuilder } from "../discord-wrappers";
 
 export const anonymousSuggestionModal = new Modal({
-	builder: new CubeModalBuilder('anonymous-suggestion')
+	builder: new CubeModalBuilder()
+		.setCustomId('anonymous-suggestion')
 		.setTitle('Send Anonymous Suggestion')
 		.addTextInput(new TextInputBuilder()
 			.setCustomId('suggestion')
