@@ -23,9 +23,12 @@ import {
 	ActionRowBuilder,
 	ModalActionRowComponentBuilder,
 	ThreadChannel,
+	Interaction,
+	CommandInteraction,
 } from 'discord.js'
 import { UserError } from 'bot-framework'
-import { CubeGuild, CubeGuildChannel, CubeGuildTextChannel, CubeMessage, CubeTextChannel, setEmbedColor } from '.'
+import { CubeGuild, CubeGuildChannel, CubeMessage, CubeTextChannel, setEmbedColor } from '.'
+import { createCubeGuildChannel, createCubeTextChannel, CubeGuildTextChannel } from './channels'
 
 export type ReplyOptions = string | (Omit<InteractionReplyOptions, 'embeds'> & { embeds?: APIEmbed[] })
 
@@ -69,15 +72,15 @@ export class CubeModalBuilder {
 	}
 }
 
-async function resolveGuildMember(
-	member: APIInteractionGuildMember | GuildMember | null, guild: Guild | null
-): Promise<GuildMember | null> {
-	if (member && !(member instanceof GuildMember)) {
-		member = await guild?.members.fetch(member.user.id) ?? null
-		if (!member) throw new UserError('Oops! Having trouble finding that channel. Please try again')
-	}
-	return member
-}
+// async function resolveGuildMember(
+// 	member: APIInteractionGuildMember | GuildMember | null, guild: Guild | null
+// ): Promise<GuildMember | null> {
+// 	if (member && !(member instanceof GuildMember)) {
+// 		member = await guild?.members.fetch(member.user.id) ?? null
+// 		if (!member) throw new UserError('Oops! Having trouble finding that channel. Please try again')
+// 	}
+// 	return member
+// }
 
 
 export abstract class CubeBaseInteraction {
@@ -88,9 +91,11 @@ export abstract class CubeBaseInteraction {
 
 	get replied() { return this.base.replied }
 	get deferred() { return this.base.deferred }
-	get channel() { return this.base.channel ? new CubeTextChannel(this.base.channel) : null }
-	get guild() { return this.base.guild ? new CubeGuild(this.base.guild) : null }
+	get channel() { return createCubeTextChannel(this.base.channel) }
 	get client() { return this.base.client }
+
+	fetchMember = async () => this.base.member instanceof GuildMember ? 
+		this.base.member : await bot.guild.findMember(this.base.member)
 
 	/** Reply, follow up, or edit deferred */
 	reply(options: ReplyOptions) {
@@ -113,6 +118,7 @@ export abstract class CubeBaseInteraction {
 
 	deleteReply = () => this.base.deleteReply()
 }
+
 abstract class CubeNonModalInteraction extends CubeBaseInteraction {
 	constructor(readonly base: ChatInputCommandInteraction | ButtonInteraction | 
 		ContextMenuCommandInteraction) { super(base) }
@@ -133,6 +139,7 @@ abstract class CubeNonModalInteraction extends CubeBaseInteraction {
 		return new CubeModalSubmitInteraction(interaction)
 	}
 }
+
 export class CubeCommandInteraction extends CubeNonModalInteraction {
 	constructor(readonly base: ChatInputCommandInteraction) { super(base) }
 
@@ -143,24 +150,25 @@ export class CubeCommandInteraction extends CubeNonModalInteraction {
 	getChannelOption(name: string, required?: boolean): Promise<CubeGuildChannel | null>
 	/** Throws a user input error if the channel could not be found */
 	async getChannelOption(name: string, required?: boolean): Promise<CubeGuildChannel | null> {
-		const option = this.options.getChannel(name, required)
-		if (option instanceof GuildChannel || option instanceof ThreadChannel) return new CubeGuildChannel(option)
-		const ch = await this.guild?.findChannel(option)
+		const channel = this.options.getChannel(name, required)
+		if (channel instanceof GuildChannel || channel instanceof ThreadChannel) return createCubeGuildChannel(channel)
+		const ch = await bot.guild.findChannel(channel)
 		if (!ch && required) throw new UserError('Oops! Having trouble finding that channel. Please try again')
 		return ch ?? null
 	}
 
-	getTextChannelOption(name: string, required: true): Promise<CubeTextChannel>
-	getTextChannelOption(name: string, required?: boolean): Promise<CubeTextChannel | null>
+	getTextChannelOption(name: string, required: true): Promise<CubeGuildTextChannel>
+	getTextChannelOption(name: string, required?: boolean): Promise<CubeGuildTextChannel | null>
 	async getTextChannelOption(name: string, required?: boolean) {
 		const channel = await this.getChannelOption(name, required)
-		if (!channel?.base.isTextBased()) {
+		if (!channel || !channel.isText()) {
 			if (required) throw new UserError('Channel is not text based!')
 			else return null
 		}
-		return new CubeTextChannel(channel.base)
+		return channel
 	}
 }
+
 export class CubeContextMenuInteraction extends CubeNonModalInteraction {
 	constructor(readonly base: ContextMenuCommandInteraction) { super(base) }
 	get commandName() { return this.base.commandName }
@@ -170,7 +178,7 @@ export class CubeContextMenuInteraction extends CubeNonModalInteraction {
 		else throw new Error(`Context menu is not a user context menu ${this.base}`)
 	}
 	getTargetMember() { // TODO: make findMember method in CubeGuild
-		if (this.base.isUserContextMenuCommand()) return resolveGuildMember(this.base.targetMember, this.guild?.base ?? null)
+		if (this.base.isUserContextMenuCommand()) return bot.guild.findMember(this.base.targetMember)
 		else throw new Error(`Context menu is not a user context menu ${this.base}`)
 	}
 	get targetMessage() {
@@ -178,10 +186,12 @@ export class CubeContextMenuInteraction extends CubeNonModalInteraction {
 		else throw new Error(`Context menu is not a message context menu ${this.base}`)
 	}
 }
+
 export class CubeButtonInteraction extends CubeNonModalInteraction {
 	constructor(readonly base: ButtonInteraction) { super(base) }
 	get customId() { return this.base.customId }
 }
+
 export class CubeModalSubmitInteraction extends CubeBaseInteraction {
 	constructor(readonly base: ModalSubmitInteraction) { super(base) }
 	get customId() { return this.base.customId }

@@ -9,8 +9,32 @@ import {
 	TextInputBuilder, 
 	TextInputStyle 
 } from "discord.js";
-import { UserError, Command, ContextMenu, Modal } from "bot-framework";
-import { CubeModalBuilder } from "discord-wrappers";
+import { UserError, Command, ContextMenu, Modal, ConfigInitializer } from "bot-framework";
+import { CubeGuildTextChannel, CubeModalBuilder } from "discord-wrappers";
+
+export const config = ConfigInitializer.create<{
+	channel: string,
+}>('anon.json')
+
+export const defaultAnonChannelCommand = new Command({
+	name: 'Configurate Default Anonymous Message Channel',
+	builder: new SlashCommandBuilder()
+		.setName('config-anon')
+		.setDescription('Configurate the /anon command')
+		.setDMPermission(false)
+		.setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+		.addChannelOption(option => option
+			.setName('channel')
+			.setDescription('The default anonymous messaging channel')
+			.addChannelTypes(ChannelType.GuildText)
+			.setRequired(true)),
+	async run(interaction) {
+		await interaction.deferEphemeral()
+		const channel = await interaction.getTextChannelOption('channel', true)
+		config.channel = channel.id
+		return config.save()
+	},
+})
 
 export const anonCommand = new Command({
 	name: 'Anon',
@@ -20,26 +44,33 @@ export const anonCommand = new Command({
 		.setDescription('Send a message anonymously')
 		.addChannelOption(option => option
 			.setName('channel')
-			.setDescription('The channel to send to (defaults to general)')
+			.setDescription('The channel to send to')
 			.addChannelTypes(ChannelType.GuildText))
 		.addStringOption(option => option
 			.setName('channel-name')
-			.setDescription('The name of the channel to send to (defaults to general)')
+			.setDescription('The name of the channel to send to')
 			.setAutocomplete(true))
 		.addStringOption(option => option
-			.setName('reply-to')
-			.setDescription('The ID of the message to reply to'))
-		.addStringOption(option => option
 			.setName('message')
-			.setDescription('The message to send')),
+			.setDescription('The message to send')
+			.setRequired(true)),
 	async run(interaction) {
+		await interaction.deferEphemeral()
 		let channel = await interaction.getTextChannelOption('channel')
 		const channelName = interaction.options.getString('channel-name')
+
 		if (channel && channelName) throw new UserError('Cannot specify channel and channel-name at the same time')
-		if (channelName) {
-			// interaction.guild?.find
-			// interaction.guild?.channels.resolve()
-		}
+		if (!channel && !channelName) {
+			if (interaction.channel?.isGuild()) channel = interaction.channel
+			else channel = await bot.guild.findTextChannel({ id: config.channel })
+		} else if (channelName) channel = await bot.guild.findTextChannel(channelName)
+		if (!channel) throw new UserError('Could not find that channel!')
+
+		const member = await interaction.fetchMember()
+		if (!member) throw new UserError('Could not determine your permissions in the channel! Please try again')
+		if (!member.permissionsIn(channel.id).has([PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages]))
+			throw new UserError('You do not have permission to send messages in that channel!')
+		return channel.send(interaction.options.getString('message', true))
 	},
 })
 
@@ -56,10 +87,10 @@ export const anonModal = new Modal({
 			.setRequired(true)
 			.setMaxLength(200)),
 	async run(interaction) {
+		await interaction.deferEphemeral()
 		if (!interaction.channel) throw new UserError('Cannot send anonymous messages in this channel')
 		const message = interaction.fields.getTextInputValue('message')
 		if (!message) throw new UserError('Message cannot be empty!')
-		await interaction.deferEphemeral()
 		return interaction.channel.send(message)
 	},
 })

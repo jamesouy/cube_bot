@@ -1,9 +1,11 @@
-import { Collection } from 'discord.js';
-import { Command } from 'bot-framework'
+import { Client, Collection } from 'discord.js';
+import { CubeBot } from 'bot-framework'
+import { CubeGuild } from 'discord-wrappers';
 
 
 declare global {
-	color: string = '#4CA8F7'
+	var color: string = '#4CA8F7'
+	var bot: CubeBot
 	namespace NodeJS {
 		interface ProcessEnv {
 			GUILD_ID: string,
@@ -15,9 +17,4 @@ declare global {
 		includes(searchElement: any, fromIndex?: number): searchElement is T;
 	}
 }
-
-declare module "discord.js" {
-	interface Client {
-		commands: Collection<string, Command>
-	}
-}
+export {}

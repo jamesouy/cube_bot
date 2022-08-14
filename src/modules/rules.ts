@@ -2,8 +2,6 @@ import {
 	SlashCommandBuilder, 
 	SlashCommandStringOption, 
 	PermissionFlagsBits, 
-	Message, 
-	Guild, 
 	ChannelType,
 	TextInputBuilder,
 	TextInputStyle,
@@ -118,8 +116,8 @@ const getSectionEmbed = (section: number, {title, rules}: Section = config.rules
 }]
 
 
-async function sendRules(channel: CubeTextChannel): Promise<Message[]> {
-	const messages: Message[] = []
+async function sendRules(channel: CubeTextChannel): Promise<CubeMessage[]> {
+	const messages: CubeMessage[] = []
 	messages.push(await channel.send({ embeds: getSummaryEmbed() }))
 	for (const section of config.rules.keys()) {
 		messages.push(await channel.send({ embeds: getSectionEmbed(section) }))

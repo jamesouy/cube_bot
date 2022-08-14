@@ -33,7 +33,7 @@ export class Initializer {
 ///////////////////
 const configInitializerKeys = ['run', 'save'] as (keyof ConfigInitializer)[]
 export class ConfigInitializer extends Initializer {
-	readonly save: () => Promise<any>
+	readonly save: () => Promise<void>
 	/**
 	 * Creates an object that is set from a config file when the bot starts up
 	 * @param file The config file to read from
