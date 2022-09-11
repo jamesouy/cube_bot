@@ -1,6 +1,6 @@
 import { Client, Collection } from 'discord.js';
-import { CubeBot } from 'bot-framework'
-import { CubeGuild } from 'discord-wrappers';
+import { CubeBot } from '@bot-framework'
+import { CubeGuild } from '@discord-wrappers';
 
 
 declare global {

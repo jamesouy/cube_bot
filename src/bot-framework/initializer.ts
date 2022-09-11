@@ -1,5 +1,5 @@
 import { Awaitable } from 'discord.js'
-import { getAllOfType } from 'utils'
+import { getAllOfType } from '@util'
 import { readFile, writeFile, readdir } from 'fs/promises'
 import { join } from 'path'
 
@@ -54,7 +54,7 @@ export class ConfigInitializer extends Initializer {
 			for (const key in this)
 				if (!(configInitializerKeys as string[]).includes(key))
 					obj[key] = this[key]
-			return writeFile(`./config/${file}`, JSON.stringify(obj, null, 4))
+			return writeFile(`../config/${file}`, JSON.stringify(obj, null, 4))
 		}
 	}
 	static create = <T>(file: string) => new ConfigInitializer(file) as T & ConfigInitializer

@@ -2,7 +2,7 @@ import { readdir } from 'fs/promises'
 import { request } from 'https'
 import { join } from 'path'
 
-export * from 'discord-wrappers'
+export * from '@discord-wrappers'
 
 
 // export type Constructor<T = {}> = new (...args: any[]) => T
@@ -59,3 +59,5 @@ export function getProp(obj: any, key: string) {
 export function capitalize(str: string) {
 	return str.replace(/^\w/, (c) => c.toUpperCase())
 }
+
+export const isSnowflake = (str: string) => /^\d+$/.test(str)

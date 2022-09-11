@@ -1,6 +1,6 @@
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, PermissionFlagsBits, SlashCommandBuilder, SlashCommandSubcommandBuilder, TextInputBuilder, TextInputStyle } from "discord.js";
-import { Command, Button, Modal } from "../bot-framework/interaction-listeners";
-import { CubeModalBuilder } from "../discord-wrappers";
+import { Command, Button, Modal } from "@bot-framework";
+import { CubeModalBuilder } from "@discord-wrappers";
 
 export const anonymousSuggestionModal = new Modal({
 	builder: new CubeModalBuilder()

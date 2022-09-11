@@ -1,8 +1,7 @@
 import { join } from 'path'
-import * as dotenv from 'dotenv'
-import { Client, Collection, GatewayIntentBits, IntentsBitField, REST, Routes } from 'discord.js'
-import { CubeBaseInteraction, CubeButtonInteraction, CubeCommandInteraction, CubeContextMenuInteraction, CubeGuild, CubeModalSubmitInteraction } from 'discord-wrappers'
-import { getAllOfType } from 'utils'
+import { Client, Collection, GatewayIntentBits, REST, Routes } from 'discord.js'
+import { CubeButtonInteraction, CubeCommandInteraction, CubeContextMenuInteraction, CubeGuild, CubeModalSubmitInteraction } from '@discord-wrappers'
+import { getAllOfType } from '@util'
 import { getAllInitializers } from './initializer'
 import { BaseCommand, Button, Command, ContextMenu, getAllButtons, getAllCommands, getAllContextMenus, getAllModals, Modal } from './interaction-listeners'
 import { stripIndents } from 'common-tags'
@@ -35,6 +34,7 @@ export {
 	}
 }
 
+
 export class CubeBot {
 	private constructor(
 		readonly client: Client,
@@ -58,8 +58,7 @@ export class CubeBot {
 	}
 
 	static async start() {
-		if (!bot) throw new Error('Bot already started')
-		dotenv.config()
+		if (global.bot) throw new Error('Bot already started')
 		for (const i of await getAllInitializers()) await i.run()
 
 		const commands = new Collection((await getAllCommands()).map(command => [command.commandName, command]))
@@ -74,14 +73,14 @@ export class CubeBot {
 				const guild = CubeGuild.maybe(await client.guilds.fetch(process.env.GUILD_ID))
 				if (!guild) return reject(new Error(`Could not find guild with id ${process.env.GUILD_ID}`))
 				console.log(`Logged in as @${client.user?.tag} on ${guild.name}!`)
-				bot = new CubeBot(client, guild, commands, contextMenus, buttons, modals)
+				global.bot = new CubeBot(client, guild, commands, contextMenus, buttons, modals)
 				resolve()
 			})
 		})
 	}
 
 	static async deploy() {
-		const commands = await getAllOfType(BaseCommand, join(__dirname, 'modules'))
+		const commands = await getAllOfType(BaseCommand, join(__dirname, '../modules'))
 		const rest = new REST({ version: '10' }).setToken(process.env.BOT_TOKEN);
 
 		// delete all commands

@@ -1,21 +1,16 @@
 //////////////////////////////////////
 /// interactions.ts
-/// Wrapper classes for Interaction
+/// Wrapper classes for discord.js Interactions
 /////////////////////////////////////
 import { 
 	ChatInputCommandInteraction, 
 	InteractionReplyOptions, 
 	APIEmbed, 
 	GuildChannel,
-	GuildBasedChannel,
 	ModalSubmitInteraction,
 	ButtonInteraction,
 	ContextMenuCommandInteraction,
-	APIInteractionDataResolvedChannel,
-	Guild,
 	GuildMember,
-	APIInteractionGuildMember,
-	ModalBuilder,
 	TextInputStyle,
 	TextInputBuilder,
 	TextInputComponentData,
@@ -23,26 +18,19 @@ import {
 	ActionRowBuilder,
 	ModalActionRowComponentBuilder,
 	ThreadChannel,
-	Interaction,
-	CommandInteraction,
+	ModalBuilder,
 } from 'discord.js'
-import { UserError } from 'bot-framework'
-import { CubeGuild, CubeGuildChannel, CubeMessage, CubeTextChannel, setEmbedColor } from '.'
+import { UserError } from '@bot-framework'
+import { CubeGuildChannel, CubeMessage, setEmbedColor } from '.'
 import { createCubeGuildChannel, createCubeTextChannel, CubeGuildTextChannel } from './channels'
 
 export type ReplyOptions = string | (Omit<InteractionReplyOptions, 'embeds'> & { embeds?: APIEmbed[] })
 
 
-
-
 // Since currently discord only supports action rows with a single text input,
 // this makes modal building a lot simpler
 export class CubeModalBuilder {
-	readonly base: ModalBuilder
-	constructor() {
-		this.base = new ModalBuilder()
-		// this.base = new ModalBuilder().setCustomId(customId)
-	}
+	readonly base: ModalBuilder = new ModalBuilder()
 
 	get title() { return this.base.data.title }
 	get customId() { return this.base.data.custom_id }
@@ -72,16 +60,6 @@ export class CubeModalBuilder {
 	}
 }
 
-// async function resolveGuildMember(
-// 	member: APIInteractionGuildMember | GuildMember | null, guild: Guild | null
-// ): Promise<GuildMember | null> {
-// 	if (member && !(member instanceof GuildMember)) {
-// 		member = await guild?.members.fetch(member.user.id) ?? null
-// 		if (!member) throw new UserError('Oops! Having trouble finding that channel. Please try again')
-// 	}
-// 	return member
-// }
-
 
 export abstract class CubeBaseInteraction {
 	constructor(readonly base: 
@@ -91,11 +69,12 @@ export abstract class CubeBaseInteraction {
 
 	get replied() { return this.base.replied }
 	get deferred() { return this.base.deferred }
+	get user() { return this.base.user }
 	get channel() { return createCubeTextChannel(this.base.channel) }
 	get client() { return this.base.client }
 
 	fetchMember = async () => this.base.member instanceof GuildMember ? 
-		this.base.member : await bot.guild.findMember(this.base.member)
+		this.base.member : await bot.guild.findMember({ user: this.user })
 
 	/** Reply, follow up, or edit deferred */
 	reply(options: ReplyOptions) {
@@ -119,6 +98,7 @@ export abstract class CubeBaseInteraction {
 	deleteReply = () => this.base.deleteReply()
 }
 
+
 abstract class CubeNonModalInteraction extends CubeBaseInteraction {
 	constructor(readonly base: ChatInputCommandInteraction | ButtonInteraction | 
 		ContextMenuCommandInteraction) { super(base) }
@@ -139,6 +119,7 @@ abstract class CubeNonModalInteraction extends CubeBaseInteraction {
 		return new CubeModalSubmitInteraction(interaction)
 	}
 }
+
 
 export class CubeCommandInteraction extends CubeNonModalInteraction {
 	constructor(readonly base: ChatInputCommandInteraction) { super(base) }
@@ -169,6 +150,7 @@ export class CubeCommandInteraction extends CubeNonModalInteraction {
 	}
 }
 
+
 export class CubeContextMenuInteraction extends CubeNonModalInteraction {
 	constructor(readonly base: ContextMenuCommandInteraction) { super(base) }
 	get commandName() { return this.base.commandName }
@@ -177,7 +159,7 @@ export class CubeContextMenuInteraction extends CubeNonModalInteraction {
 		if (this.base.isUserContextMenuCommand()) return this.base.targetUser 
 		else throw new Error(`Context menu is not a user context menu ${this.base}`)
 	}
-	getTargetMember() { // TODO: make findMember method in CubeGuild
+	getTargetMember() {
 		if (this.base.isUserContextMenuCommand()) return bot.guild.findMember(this.base.targetMember)
 		else throw new Error(`Context menu is not a user context menu ${this.base}`)
 	}
@@ -187,10 +169,12 @@ export class CubeContextMenuInteraction extends CubeNonModalInteraction {
 	}
 }
 
+
 export class CubeButtonInteraction extends CubeNonModalInteraction {
 	constructor(readonly base: ButtonInteraction) { super(base) }
 	get customId() { return this.base.customId }
 }
+
 
 export class CubeModalSubmitInteraction extends CubeBaseInteraction {
 	constructor(readonly base: ModalSubmitInteraction) { super(base) }

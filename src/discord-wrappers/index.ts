@@ -1,12 +1,11 @@
 ////////////////////////////////////
-/// discord.ts
+/// discord-wrappers
 /// Wrapper classes for discord.js
 ///////////////////////////////////
-
-import { APIEmbed, BitFieldResolvable, Client, Collection, GatewayIntentBits, GatewayIntentsString, Message, MessageEditOptions } from 'discord.js'
+import { APIEmbed, Client, Collection, GatewayIntentBits, Message, MessageEditOptions } from 'discord.js'
 import { ReplyOptions } from './interactions'
 import { SendOptions, createCubeTextChannel } from './channels'
-import { Button, Command, ContextMenu, Modal } from 'bot-framework'
+import { Command } from '@bot-framework'
 
 export { CubeGuild } from './guild'
 export {

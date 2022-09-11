@@ -2,7 +2,7 @@
   "name": "cube-bot",
   "version": "2.0.0",
   "description": "Discord bot for the anime club at UT Austin",
-  "main": "out/bot.js",
+  "main": "out",
   "scripts": {
     "test": "node .",
     "start": "node out/deploy-commands; node .",
@@ -12,6 +12,7 @@
   "license": "MIT",
   "devDependencies": {
     "@types/common-tags": "^1.8.1",
+    "tsconfig-paths": "^4.1.0",
     "typescript": "^4.7.4"
   },
   "dependencies": {

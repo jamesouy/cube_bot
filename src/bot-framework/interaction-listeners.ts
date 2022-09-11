@@ -16,8 +16,8 @@ import {
 	CubeContextMenuInteraction, 
 	CubeModalBuilder, 
 	CubeModalSubmitInteraction 
-} from 'discord-wrappers'
-import { getAllOfType } from 'utils'
+} from '@discord-wrappers'
+import { getAllOfType } from '@util'
 import { UserError } from '.'
 
 
@@ -92,6 +92,7 @@ export class Command extends BaseCommand {
 			return interaction.reply('Oh no! It seems that this command has been removed. Please contact a moderator')
 		}
 	}
+	getData = () => this.builder.toJSON()
 }
 export const getAllCommands = () => getAllOfType(Command, join(__dirname, '../modules'))
 

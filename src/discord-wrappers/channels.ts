@@ -1,28 +1,28 @@
+//////////////////////////////////////////////////
+/// channels.ts
+/// Wrapper classes for discord.js channels
+/// 4 types: DM, guild text, category, and stage
+//////////////////////////////////////////////////
 import { 
 	APIEmbed, 
 	TextBasedChannel,
 	MessageOptions,
-	GuildTextBasedChannel,
 	GuildBasedChannel,
   NewsChannel,
   TextChannel,
   PublicThreadChannel,
   PrivateThreadChannel,
-  GuildChannel,
   CategoryChannel,
   VoiceChannel,
   Channel,
   DMChannel,
   PartialDMChannel,
-  PartialGroupDMChannel,
   StageChannel,
 } from 'discord.js'
-import { CubeMessage, setEmbedColor } from 'discord-wrappers'
-import { CubeGuild } from './guild'
+import { CubeMessage, setEmbedColor } from '@discord-wrappers'
 
 
 export type SendOptions = string | (Omit<MessageOptions, 'embeds'> & { embeds?: APIEmbed[] })
-
 
 /////////////////
 /// Interfaces
@@ -31,17 +31,18 @@ interface CubeChannel {
   readonly base: Channel
   get id(): string
   isDM(): this is CubeDMChannel
-  isCategory(): this is CubeDMChannel
+  isCategory(): this is CubeCategoryChannel
   isGuild(): this is CubeGuildChannel
   isText(): this is CubeTextChannel
 }
 export interface CubeTextChannel extends CubeChannel {
   readonly base: TextBasedChannel
   send(options: SendOptions): Promise<CubeMessage>
+  isGuild(): this is CubeGuildTextChannel
 }
 export interface CubeGuildChannel extends CubeChannel {
   readonly base: GuildBasedChannel
-  get guild(): CubeGuild
+  isText(): this is CubeGuildTextChannel
 }
 
 export function createCubeTextChannel(channel?: TextBasedChannel | null): CubeTextChannel | null {
@@ -60,16 +61,10 @@ export function createCubeGuildChannel(channel?: GuildBasedChannel | null): Cube
 ////////////////
 /// Classes (implementation)
 ////////
-export abstract class CubeBaseChannel implements CubeChannel {
+abstract class CubeBaseChannel {
   constructor(readonly base: Channel) {}
   get id() { return this.base.id }
-
-  isDM = (): this is CubeDMChannel => this instanceof CubeDMChannel
-  isCategory = (): this is CubeDMChannel => this instanceof CubeCategoryChannel
-  isGuild = (): this is CubeGuildChannel =>
-    this instanceof CubeGuildTextChannel || this instanceof CubeCategoryChannel
-  isText = (): this is CubeTextChannel => 
-    this instanceof CubeDMChannel || this instanceof CubeGuildTextChannel
+  get mention() { return `<#${this.id}>` }
 }
 
 type DiscordDMChannel = DMChannel | PartialDMChannel
@@ -79,24 +74,37 @@ export class CubeDMChannel extends CubeBaseChannel implements CubeTextChannel {
 	async send(options: SendOptions) {
 		return new CubeMessage(await this.base.send(setEmbedColor(options)))
 	}
+  isDM = (): this is CubeDMChannel => true
+  isCategory = (): this is CubeCategoryChannel => false
+  isGuild = (): this is CubeGuildTextChannel => false
+  isText = (): this is CubeTextChannel => true
 }
 
 type DiscordGuildTextChannel = TextChannel | NewsChannel | PublicThreadChannel | PrivateThreadChannel | VoiceChannel
 export class CubeGuildTextChannel extends CubeBaseChannel implements CubeTextChannel, CubeGuildChannel {
   constructor(readonly base: DiscordGuildTextChannel) { super(base) }
   static maybe = (base?: DiscordGuildTextChannel) => base ? new CubeGuildTextChannel(base) : null
-  get guild() { return new CubeGuild(this.base.guild) }
   async send(options: SendOptions) {
     return new CubeMessage(await this.base.send(setEmbedColor(options)))
   }
+  isDM = (): this is CubeDMChannel => false
+  isCategory = (): this is CubeCategoryChannel => false
+  isGuild = (): this is CubeGuildTextChannel => true
+  isText = (): this is CubeGuildTextChannel => true
 }
 export class CubeCategoryChannel extends CubeBaseChannel implements CubeGuildChannel {
   constructor(readonly base: CategoryChannel) { super(base) }
   static maybe = (base?: CategoryChannel) => base ? new CubeCategoryChannel(base) : null
-  get guild() { return new CubeGuild(this.base.guild) }
+  isDM = (): this is CubeDMChannel => false
+  isCategory = (): this is CubeCategoryChannel => true
+  isGuild = (): this is CubeGuildChannel => true
+  isText = (): this is CubeGuildTextChannel => false
 }
 export class CubeStageChannel extends CubeBaseChannel implements CubeGuildChannel {
   constructor(readonly base: StageChannel) { super(base) }
   static maybe = (base?: StageChannel) => base ? new CubeStageChannel(base) : null
-  get guild() { return new CubeGuild(this.base.guild) }
+  isDM = (): this is CubeDMChannel => false
+  isCategory = (): this is CubeCategoryChannel => false
+  isGuild = (): this is CubeGuildChannel => true
+  isText = (): this is CubeGuildTextChannel => false
 }

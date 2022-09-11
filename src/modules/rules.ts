@@ -7,9 +7,9 @@ import {
 	TextInputStyle,
 } from 'discord.js'
 
-import { UserError, Command, ConfigInitializer } from "bot-framework";
-import { CubeGuild, CubeMessage, CubeModalBuilder, CubeTextChannel } from 'discord-wrappers'
-import { capitalize, readUrl } from 'utils';
+import { UserError, Command, ConfigInitializer } from "@bot-framework";
+import { CubeMessage, CubeModalBuilder, CubeTextChannel } from '@discord-wrappers'
+import { capitalize, readUrl } from '@util';
 
 
 //////////////////
@@ -127,9 +127,9 @@ async function sendRules(channel: CubeTextChannel): Promise<CubeMessage[]> {
 
 // get the messages for each section where the rules were published with /rules publish
 // returns null if at least one of the messages has been deleted
-async function fetchPublishedMessages(guild?: CubeGuild): Promise<CubeMessage[] | null> {
+async function fetchPublishedMessages(): Promise<CubeMessage[] | null> {
 	if (config.messages.length < config.rules.length+1) return null
-	const channel = await guild?.findTextChannel({id: config.channel})
+	const channel = await bot.guild.findTextChannel({id: config.channel})
 	if (!channel) return null
 	const messages: CubeMessage[] = []
 	for (let i = 0; i < config.rules.length+1; i++) {
@@ -447,7 +447,7 @@ export const rulesCommand = new Command({
 				else return new UserError('Oops! Couldn\'t find this channel. Try using the command again')
 			}
 			case 'publish': {
-				const messages = await fetchPublishedMessages(interaction.guild ?? undefined)
+				const messages = await fetchPublishedMessages()
 				if (messages) {
 					await messages[0].edit({embeds: getSummaryEmbed()})
 					for (const section of config.rules.keys()) 
