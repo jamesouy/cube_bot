@@ -10,8 +10,10 @@ import { createHash } from 'node:crypto'
 import { UserError, Command, ConfigInitializer } from "@bot-framework";
 import '@utils'
 import { stripIndent } from "common-tags";
+import { CubeTextChannel } from "@utils";
 
 export const config = ConfigInitializer.create<{
+	logChannel: string
 	banned: {
 		[key: string]: {
 			end?: number
@@ -54,7 +56,9 @@ function checkBan(uid: string) {
 	if (uid in config.banned) {
 		const { end, reason } = config.banned[uid]
 		if (end && end <= Date.now()) {
+			const ban = config.banned[uid]
 			delete config.banned[uid]
+			sendUnbanLog(uid, ban)
 		} else {
 			let msg = 'You are currently banned from sending anonymous messages'
 			if (end) msg += ` until <t:${Math.floor(end/1000)}>`
@@ -77,6 +81,21 @@ function findUserByTag(tag: number) {
 			if (tag) return id
 	return null
 }
+// get the display username of an anonymous user
+const getName = (tag: number, justTag = false) => `${
+	justTag ? '' : 'Anonymous'
+}#${tag.toLocaleString('en-US', {
+	minimumIntegerDigits: 4, useGrouping: false
+})}`
+async function sendUnbanLog(uid: string, {end, reason}: {end?: number, reason?: string}) {
+	return (await bot.guild.findTextChannel({id: config.logChannel}))?.send({embeds: [{
+		title: 'Anon Unban',
+		description: stripIndent`
+			*Offender:* <@!${uid}> (@${(await bot.guild.findMember(uid))?.tag})
+			*Reason:* ${reason ?? 'No reason given'}
+		`
+	}]})
+}
 
 export const anonMod = new Command({
 	name: 'Anon Moderation',
@@ -85,6 +104,15 @@ export const anonMod = new Command({
 		.setDescription('Moderation commands for /anon')
 		.setDMPermission(false)
 		.setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+
+		.addSubcommand(subcommand => subcommand
+			.setName('log')
+			.setDescription('Change the anon mod log channel')
+			.addChannelOption(option => option
+				.setName('channel')
+				.setDescription('The channel to send mute/ban messages to')
+				.addChannelTypes(ChannelType.GuildText)
+				.setRequired(false)))
 
 		.addSubcommand(subcommand => subcommand
 			.setName('mute')
@@ -159,65 +187,87 @@ export const anonMod = new Command({
 
 	async run(interaction) {
 		switch (interaction.options.getSubcommand()) {
+			case 'log': {
+				const channel = await interaction.getTextChannelOption('channel')
+				if (!channel) 
+					return interaction.replyEphemeral(`Anon log channel currently set to: <#${config.logChannel}>`)
+				
+				config.logChannel = channel.id
+				await config.save()
+				return interaction.reply(`Anon log channel set to <#${config.logChannel}>`)
+			}
 			case 'mute': {
 				const tag = interaction.options.getNumber('tag')
 
-				if (!tag) { // show list
-					return interaction.replyEphemeral({ embeds: [{
-						title: 'Current Anon Mutelist',
-						description: Object.keys(config.muted).map((uid, i) => {
-							let str = `${i+1}. ${config.tags[uid].map(tag => `#${tag}`).join(', ')}`
-							if (config.muted[uid]) str += `\n> Reason: ${config.muted[uid]}`
-							return str
-						}
-						).join('') || 'No one is currently muted'
-					}]})
-				}
+				// show list
+				if (tag == null) return interaction.replyEphemeral({ embeds: [{
+					title: 'Current Anon Mutelist',
+					description: Object.keys(config.muted).map((uid, i) => {
+						let str = `${i+1}. ${config.tags[uid].map(tag => getName(tag, true)).join(', ')}`
+						if (config.muted[uid]) str += `\n> Reason: ${config.muted[uid]}`
+						return str
+					}
+					).join('') || 'No one is currently muted'
+				}]})
 
 				const uid = findUserByTag(tag)
-				if (!uid) throw new UserError(`The tag #${tag} has not been claimed for the current hour yet`)
+				if (!uid) throw new UserError(`The tag ${getName(tag, true)} has not been claimed for the current hour yet`)
 				if (uid in config.muted) throw new UserError('That user has already been muted')
 				const reason = interaction.options.getString('reason')
 				config.muted[uid] = reason ?? undefined
 				await config.save()
 
-				let str = `Muted Anonymous#${tag} until the end of the hour`
+				await (await bot.guild.findTextChannel({id: config.logChannel}))?.send({embeds: [{
+					title: 'Anon Mute',
+					description: stripIndent`
+						*Offender:* ${getName(tag)}
+						*Reason:* ${reason ?? 'No reason given'}
+					`
+				}]})
+
+				let str = `Muted ${getName(tag)} until the end of the hour`
 				if (reason) str += `. Reason: \n> ${reason}`
 				return interaction.reply(str)
 			}
 			case 'unmute': {
 				const tag = interaction.options.getNumber('tag', true)
 				const uid = findUserByTag(tag)
-				if (!uid) throw new UserError(`There is no user with the tag #${tag}`)
-				if (!(uid in config.muted)) throw new UserError(`The user with the tag #${tag} is not currently muted`)
+				if (!uid) throw new UserError(`There is no user with the tag ${getName(tag, true)}`)
+				if (!(uid in config.muted)) throw new UserError(`The user with the tag ${getName(tag, true)} is not currently muted`)
 				delete config.muted[uid]
 				config.save()
 
-				return interaction.reply(`Unmuted Anonymous#${tag}`)
+				await (await bot.guild.findTextChannel({id: config.logChannel}))?.send({embeds: [{
+					title: 'Anon Unmute',
+					description: stripIndent`
+						*Offender:* ${getName(tag)}
+					`
+				}]})
+
+				return interaction.reply(`Unmuted ${getName(tag)}`)
 			}
 			case 'ban': { 
 				const tag = interaction.options.getNumber('tag')
-				const user = interaction.options.getUser('user')
+				let user = interaction.options.getUser('user')
 				let uid = user?.id ?? null
 
-				if (tag) {
+				if (tag != null) {
 					if (uid) throw new UserError('Cannot specify tag and user at the same time!')
 					else {
 						uid = findUserByTag(tag)
-						if (!uid) throw new UserError(`The tag #${tag} has not been claimed for the current hour yet`)
+						if (!uid) throw new UserError(`The tag ${getName(tag, true)} has not been claimed for the current hour yet`)
 					}
-				} else if (!uid) { // show list
-					return interaction.replyEphemeral({ embeds: [{
-						title: 'Anon Banlist',
-						description: (await Promise.all(Object.keys(config.banned).map(async (uid, i) => {
-							const { end, reason } = config.banned[uid]
-							let str = `${i+1}. <@!${uid}> (@${(await bot.guild.findMember(uid))?.tag})`
-							if (end) str += `\n> Unban <t:${Math.floor(end/1000)}:R>`
-							if (reason) str += `\n> Reason: ${reason}`
-							return str
-						}))).join('\n') || 'No one is currently banned'
-					}]})
-				}
+				}  // show list
+				else if (!uid) return interaction.replyEphemeral({ embeds: [{
+					title: 'Anon Banlist',
+					description: (await Promise.all(Object.keys(config.banned).map(async (uid, i) => {
+						const { end, reason } = config.banned[uid]
+						let str = `${i+1}. <@!${uid}> (@${(await bot.guild.findMember(uid))?.tag})`
+						if (end) str += `\n> Unban <t:${Math.floor(end/1000)}:R>`
+						if (reason) str += `\n> Reason: ${reason}`
+						return str
+					}))).join('\n') || 'No one is currently banned'
+				}]})
 
 				if (uid in config.banned) throw new UserError('That user has already been banned')
 
@@ -234,16 +284,34 @@ export const anonMod = new Command({
 				config.save()
 
 				const end = config.banned[uid].end
-				let str = `Banned Anonymous#${tag} from sending anonymous messages`
+				user ??= (await bot.guild.findMember(uid))?.user ?? null
+				await (await bot.guild.findTextChannel({id: config.logChannel}))?.send({embeds: [{
+					title: 'Anon Ban',
+					description: stripIndent`
+						*Offender:* <@!${uid}> ${user ? `(@${user.tag})` : ''} ${
+							tag ? '- '+config.tags[uid].map(tag => getName(tag, true)).join(', ') : ''}
+						*End time:* ${end ? `<t:${Math.floor(end/1000)}:R>` : 'Never'}
+						*Reason:* ${reason ?? 'No reason given'}
+					`
+				}]})
+
+				let str = `Banned ${
+					tag == null ? `<@!${uid}> `+(user?`(@${user.tag})`:'') : getName(tag)
+				} from sending anonymous messages`
 				if (end) str += ` until <t:${Math.floor(end/1000)}>`
 				if (reason) str += `. Reason: \n> ${reason}`
-				return interaction.reply(str)
+				return interaction.reply({ content: str, ephemeral: tag == null})
 			}
 			case 'unban': {
 				const uid = interaction.options.getUser('user', true).id
 				if (!(uid in config.banned)) throw new UserError(`That user is not currently banned`)
+				const ban = config.banned[uid]
 				delete config.banned[uid]
-				return config.save()
+				config.save()
+
+				await sendUnbanLog(uid, ban)
+				return interaction.replyEphemeral(`Unbanned <@!${uid}> (@${
+					(await bot.guild.findMember(uid))?.tag}) from sending anonymous messages`)
 			}
 			case 'reset': {
 				resetTags(true)

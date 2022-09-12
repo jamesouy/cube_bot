@@ -11,6 +11,7 @@ export class CubeMember {
 	get displayName() { return this.base.displayName }
 	get username() { return this.base.user.username}
 	get tag() { return this.base.user.tag }
+	get user() { return this.base.user }
 
 	// Check whether the member has all listed permissions
 	get permissions() { return this.base.permissions }
