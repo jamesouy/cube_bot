@@ -358,5 +358,8 @@ export const anonRetagCommand = new Command({
 		if (unclaimed.length == 0) throw new UserError('No anonymous user slots left! Please wait until the next hour')
 		config.tags[uid].push(unclaimed[Math.floor(Math.random() * unclaimed.length)])
 		config.save()
+
+		userTags = config.tags[uid]
+		return interaction.replyEphemeral(`Done: #${userTags[userTags.length-2]} -> #${userTags[userTags.length-1]}`)
 	}
 })
