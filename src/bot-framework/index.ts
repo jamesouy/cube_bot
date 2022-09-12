@@ -1,7 +1,7 @@
 import { join } from 'path'
 import { Client, Collection, GatewayIntentBits, REST, Routes } from 'discord.js'
 import { CubeButtonInteraction, CubeCommandInteraction, CubeContextMenuInteraction, CubeGuild, CubeModalSubmitInteraction } from '@discord-wrappers'
-import { getAllOfType } from '@util'
+import { getAllOfType } from '@utils'
 import { getAllInitializers } from './initializer'
 import { BaseCommand, Button, Command, ContextMenu, getAllButtons, getAllCommands, getAllContextMenus, getAllModals, Modal } from './interaction-listeners'
 import { stripIndents } from 'common-tags'
@@ -99,12 +99,12 @@ export class CubeBot {
 			const slashCommands = commands.filter(command => command instanceof Command)
 			console.log(stripIndents`
 				Registered ${slashCommands.length} commands: 
-				${slashCommands.map(command => command.name).join(', ')}
+				${slashCommands.map(command => `> ${command.name}`).join('\n')}
 			`)
 			const contextMenus = commands.filter(command => command instanceof ContextMenu)
 			console.log(stripIndents`
 				Registered ${contextMenus.length} context menus: 
-				${contextMenus.map(command => command.name).join(', ')}
+				${contextMenus.map(command => `> ${command.name}`).join('\n')}
 			`)
 		}).catch(console.error);
 	}

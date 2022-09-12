@@ -18,11 +18,17 @@ import {
   DMChannel,
   PartialDMChannel,
   StageChannel,
+  BufferResolvable,
+  Webhook,
+  Collection,
+  WebhookMessageOptions,
 } from 'discord.js'
 import { CubeMessage, setEmbedColor } from '@discord-wrappers'
 
+const cachedWebhooks = new Collection<string, Webhook>()
 
 export type SendOptions = string | (Omit<MessageOptions, 'embeds'> & { embeds?: APIEmbed[] })
+export type WebhookSendOptions = Omit<WebhookMessageOptions, 'flags'>
 
 /////////////////
 /// Interfaces
@@ -42,14 +48,21 @@ export interface CubeTextChannel extends CubeChannel {
 }
 export interface CubeGuildChannel extends CubeChannel {
   readonly base: GuildBasedChannel
+  get name(): string
   isText(): this is CubeGuildTextChannel
 }
 
+export function createCubeTextChannel(channel: TextBasedChannel): CubeTextChannel
+export function createCubeTextChannel(channel?: null): null
+export function createCubeTextChannel(channel?: TextBasedChannel | null): CubeTextChannel | null
 export function createCubeTextChannel(channel?: TextBasedChannel | null): CubeTextChannel | null {
   if (!channel) return null
   if (channel.isDMBased()) return new CubeDMChannel(channel)
   return new CubeGuildTextChannel(channel)
 }
+export function createCubeGuildChannel(channel: GuildBasedChannel): CubeGuildChannel
+export function createCubeGuildChannel(channel?: null): null
+export function createCubeGuildChannel(channel?: GuildBasedChannel | null): CubeGuildChannel | null
 export function createCubeGuildChannel(channel?: GuildBasedChannel | null): CubeGuildChannel | null {
   if (!channel) return null
   if (channel.isTextBased()) return new CubeGuildTextChannel(channel)
@@ -83,9 +96,21 @@ export class CubeDMChannel extends CubeBaseChannel implements CubeTextChannel {
 type DiscordGuildTextChannel = TextChannel | NewsChannel | PublicThreadChannel | PrivateThreadChannel | VoiceChannel
 export class CubeGuildTextChannel extends CubeBaseChannel implements CubeTextChannel, CubeGuildChannel {
   constructor(readonly base: DiscordGuildTextChannel) { super(base) }
+  get name() { return this.base.name }
   static maybe = (base?: DiscordGuildTextChannel) => base ? new CubeGuildTextChannel(base) : null
   async send(options: SendOptions) {
     return new CubeMessage(await this.base.send(setEmbedColor(options)))
+  }
+  async sendWebhook(options: WebhookSendOptions): Promise<CubeMessage> {
+    const ch = this.base.isThread() ? this.base.parent : this.base
+    if (!ch) throw new Error('Cannot create webhooks in this channel');
+    let webhook = cachedWebhooks.get(ch.id)
+    if (webhook) try {
+      return new CubeMessage(await webhook.send(options))
+    } catch {}
+    webhook = (await ch.fetchWebhooks()).find(wh => wh.token != null) ?? await ch.createWebhook({ name: "CubeWebhook" })
+    cachedWebhooks.set(ch.id, webhook)
+    return new CubeMessage(await webhook.send(options))
   }
   isDM = (): this is CubeDMChannel => false
   isCategory = (): this is CubeCategoryChannel => false
@@ -94,6 +119,7 @@ export class CubeGuildTextChannel extends CubeBaseChannel implements CubeTextCha
 }
 export class CubeCategoryChannel extends CubeBaseChannel implements CubeGuildChannel {
   constructor(readonly base: CategoryChannel) { super(base) }
+  get name() { return this.base.name }
   static maybe = (base?: CategoryChannel) => base ? new CubeCategoryChannel(base) : null
   isDM = (): this is CubeDMChannel => false
   isCategory = (): this is CubeCategoryChannel => true
@@ -102,6 +128,7 @@ export class CubeCategoryChannel extends CubeBaseChannel implements CubeGuildCha
 }
 export class CubeStageChannel extends CubeBaseChannel implements CubeGuildChannel {
   constructor(readonly base: StageChannel) { super(base) }
+  get name() { return this.base.name }
   static maybe = (base?: StageChannel) => base ? new CubeStageChannel(base) : null
   isDM = (): this is CubeDMChannel => false
   isCategory = (): this is CubeCategoryChannel => false

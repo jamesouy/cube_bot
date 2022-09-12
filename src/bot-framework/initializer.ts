@@ -1,5 +1,5 @@
 import { Awaitable } from 'discord.js'
-import { getAllOfType } from '@util'
+import { getAllOfType } from '@utils'
 import { readFile, writeFile, readdir } from 'fs/promises'
 import { join } from 'path'
 
@@ -38,7 +38,7 @@ export class ConfigInitializer extends Initializer {
 	 * Creates an object that is set from a config file when the bot starts up
 	 * @param file The config file to read from
 	 */
-	private constructor(file: string) {
+	private constructor(file: string, then: () => any) {
 		super(async () => {
 			const config = await readFile(`./config/${file}`)
 				.then(content => JSON.parse(content.toString()))
@@ -48,14 +48,16 @@ export class ConfigInitializer extends Initializer {
 				//@ts-ignore
 				this[key] = config[key] 
 			}
+			then()
 		})
 		this.save = () => {
 			const obj: any = {}
 			for (const key in this)
 				if (!(configInitializerKeys as string[]).includes(key))
 					obj[key] = this[key]
-			return writeFile(`../config/${file}`, JSON.stringify(obj, null, 4))
+			return writeFile(`./config/${file}`, JSON.stringify(obj, null, 4))
 		}
 	}
-	static create = <T>(file: string) => new ConfigInitializer(file) as T & ConfigInitializer
+	static create = <T>(file: string, then: () => any = () => {}) => 
+		new ConfigInitializer(file, then) as T & ConfigInitializer
 }

@@ -17,7 +17,7 @@ import {
 	CubeModalBuilder, 
 	CubeModalSubmitInteraction 
 } from '@discord-wrappers'
-import { getAllOfType } from '@util'
+import { getAllOfType } from '@utils'
 import { UserError } from '.'
 
 

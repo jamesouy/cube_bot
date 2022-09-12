@@ -23,6 +23,7 @@ import {
 import { UserError } from '@bot-framework'
 import { CubeGuildChannel, CubeMessage, setEmbedColor } from '.'
 import { createCubeGuildChannel, createCubeTextChannel, CubeGuildTextChannel } from './channels'
+import { CubeMember } from './member'
 
 export type ReplyOptions = string | (Omit<InteractionReplyOptions, 'embeds'> & { embeds?: APIEmbed[] })
 
@@ -74,7 +75,7 @@ export abstract class CubeBaseInteraction {
 	get client() { return this.base.client }
 
 	fetchMember = async () => this.base.member instanceof GuildMember ? 
-		this.base.member : await bot.guild.findMember({ user: this.user })
+		new CubeMember(this.base.member) : await bot.guild.findMember({ user: this.user })
 
 	/** Reply, follow up, or edit deferred */
 	reply(options: ReplyOptions) {

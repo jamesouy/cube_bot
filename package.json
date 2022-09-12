@@ -5,8 +5,7 @@
   "main": "out",
   "scripts": {
     "test": "node .",
-    "start": "node out/deploy-commands; node .",
-    "deploy": "node out/deploy-commands"
+    "start": "node . -deploy"
   },
   "author": "Anime Club at UT Austin",
   "license": "MIT",

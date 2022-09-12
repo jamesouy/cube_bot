@@ -9,7 +9,7 @@ import {
 
 import { UserError, Command, ConfigInitializer } from "@bot-framework";
 import { CubeMessage, CubeModalBuilder, CubeTextChannel } from '@discord-wrappers'
-import { capitalize, readUrl } from '@util';
+import { capitalize, readUrl } from '@utils';
 
 
 //////////////////
@@ -292,12 +292,11 @@ export const rulesCommand = new Command({
 				.setRequired(true))),
 		
 	ephemeral(interaction) {
-		const subcommand = interaction.options.getSubcommand()
 		if ([
 			'edit-summary', 'edit', 'add', 'remove', 'move', 
 			'edit-section', 'add-section', 'remove-section', 'move-section',
 			'export', 'import'
-		].includes(subcommand)) return true
+		].includes(interaction.options.getSubcommand())) return true
 		else return false
 	},
 

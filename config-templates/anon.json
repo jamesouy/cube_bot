@@ -1,3 +1,6 @@
 {
-  "channel": ""
+  "currHour": 0,
+  "muted": [],
+  "tags": {},
+  "prevTags": {}
 }

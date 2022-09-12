@@ -16,5 +16,8 @@ declare global {
 	interface ReadonlyArray<T> {
 		includes(searchElement: any, fromIndex?: number): searchElement is T;
 	}
+	interface String {
+		replaceAsync(searchValue: string | RegExp, replacer: (substring: string) => Promise<string>): Promise<string>
+	}
 }
 export {}

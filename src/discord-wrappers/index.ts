@@ -21,6 +21,9 @@ export {
 	CubeModalSubmitInteraction,
 	CubeModalBuilder,
 } from './interactions'
+export {
+	CubeMember
+} from './member'
 
 
 type EditOptions = string | (Omit<MessageEditOptions, 'embeds'> & { embeds?: APIEmbed[] })

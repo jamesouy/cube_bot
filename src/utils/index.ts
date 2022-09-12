@@ -61,3 +61,13 @@ export function capitalize(str: string) {
 }
 
 export const isSnowflake = (str: string) => /^\d+$/.test(str)
+
+String.prototype.replaceAsync = function (searchValue: string | RegExp, replacer: (substring: string) => Promise<string>) {
+	const promises: Promise<string>[] = [];
+	// does not actually replace anything, just builds the promises:
+	this.replace(searchValue, (substring) => {
+		promises.push(replacer(substring))
+		return substring
+	})
+	return Promise.all(promises).then(results => this.replace(searchValue, _ => results.shift() ?? 'undefined'))
+}
