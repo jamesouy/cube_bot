@@ -1,5 +1,6 @@
 import { Awaitable } from 'discord.js'
-import { getAllOfType, loadConfig, saveConfig } from '../util'
+import { getAllOfType } from '@utils'
+import { readFile, writeFile, readdir } from 'fs/promises'
 import { join } from 'path'
 
 
@@ -32,28 +33,31 @@ export class Initializer {
 ///////////////////
 const configInitializerKeys = ['run', 'save'] as (keyof ConfigInitializer)[]
 export class ConfigInitializer extends Initializer {
-	readonly save: () => Promise<any>
+	readonly save: () => Promise<void>
 	/**
 	 * Creates an object that is set from a config file when the bot starts up
 	 * @param file The config file to read from
 	 */
-	private constructor(file: string) {
+	private constructor(file: string, then: () => any) {
 		super(async () => {
-			const config = await loadConfig(file)
+			const config = await readFile(`./config/${file}`)
+				.then(content => JSON.parse(content.toString()))
 			for (const key in config) {
 				if (key in this) 
 					throw new Error(`Cannot use the reserved property ${key} in ${file}`)
 				//@ts-ignore
 				this[key] = config[key] 
 			}
+			then()
 		})
 		this.save = () => {
 			const obj: any = {}
 			for (const key in this)
 				if (!(configInitializerKeys as string[]).includes(key))
 					obj[key] = this[key]
-			return saveConfig(obj, file)
+			return writeFile(`./config/${file}`, JSON.stringify(obj, null, 4))
 		}
 	}
-	static create = <T>(file: string) => new ConfigInitializer(file) as T & ConfigInitializer
+	static create = <T>(file: string, then: () => any = () => {}) => 
+		new ConfigInitializer(file, then) as T & ConfigInitializer
 }

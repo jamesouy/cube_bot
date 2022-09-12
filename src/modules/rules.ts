@@ -2,17 +2,14 @@ import {
 	SlashCommandBuilder, 
 	SlashCommandStringOption, 
 	PermissionFlagsBits, 
-	Message, 
-	Guild, 
 	ChannelType,
 	TextInputBuilder,
 	TextInputStyle,
 } from 'discord.js'
 
-import { Command } from "../bot-framework/interactions";
-import { ConfigInitializer } from '../bot-framework/initializer';
-import { CubeMessage, CubeModalBuilder, CubeTextChannel } from '../util/discord'
-import { capitalize, readUrl, UserError } from '../util';
+import { UserError, Command, ConfigInitializer } from "@bot-framework";
+import { CubeMessage, CubeModalBuilder, CubeTextChannel } from '@discord-wrappers'
+import { capitalize, readUrl } from '@utils';
 
 
 //////////////////
@@ -119,8 +116,8 @@ const getSectionEmbed = (section: number, {title, rules}: Section = config.rules
 }]
 
 
-async function sendRules(channel: CubeTextChannel): Promise<Message[]> {
-	const messages: Message[] = []
+async function sendRules(channel: CubeTextChannel): Promise<CubeMessage[]> {
+	const messages: CubeMessage[] = []
 	messages.push(await channel.send({ embeds: getSummaryEmbed() }))
 	for (const section of config.rules.keys()) {
 		messages.push(await channel.send({ embeds: getSectionEmbed(section) }))
@@ -130,15 +127,14 @@ async function sendRules(channel: CubeTextChannel): Promise<Message[]> {
 
 // get the messages for each section where the rules were published with /rules publish
 // returns null if at least one of the messages has been deleted
-async function fetchPublishedMessages(guild?: Guild): Promise<CubeMessage[] | null> {
-	if (!guild) return null
-	if (!config.channel || config.messages.length < config.rules.length+1) return null
-	const channel = await guild.channels.fetch(config.channel)
-	if (!channel || !channel.isTextBased()) return null
+async function fetchPublishedMessages(): Promise<CubeMessage[] | null> {
+	if (config.messages.length < config.rules.length+1) return null
+	const channel = await bot.guild.findTextChannel({id: config.channel})
+	if (!channel) return null
 	const messages: CubeMessage[] = []
 	for (let i = 0; i < config.rules.length+1; i++) {
 		try {
-			const message = await channel.messages.fetch(config.messages[i])
+			const message = await channel.base.messages.fetch(config.messages[i])
 			if (!message.editable) return null
 			messages.push(new CubeMessage(message))
 		} catch (err) {
@@ -296,12 +292,11 @@ export const rulesCommand = new Command({
 				.setRequired(true))),
 		
 	ephemeral(interaction) {
-		const subcommand = interaction.options.getSubcommand()
 		if ([
 			'edit-summary', 'edit', 'add', 'remove', 'move', 
 			'edit-section', 'add-section', 'remove-section', 'move-section',
 			'export', 'import'
-		].includes(subcommand)) return true
+		].includes(interaction.options.getSubcommand())) return true
 		else return false
 	},
 
@@ -331,7 +326,8 @@ export const rulesCommand = new Command({
 
 		switch (interaction.options.getSubcommand()) {
 			case 'edit-summary': {
-				const modalInteraction = await interaction.awaitModal(new CubeModalBuilder('rules-edit-summary')
+				const modalInteraction = await interaction.awaitModal(new CubeModalBuilder()
+					.setCustomId('rules-edit-summary')
 					.setTitle('Editing Rules Summary')
 					.addTextInput(titleTextField(config.title))
 					.addTextInput(summaryTextField(config.summary)))
@@ -348,7 +344,8 @@ export const rulesCommand = new Command({
 			case 'edit': {
 				const ruleId = getRuleIdOption('rule-number')
 				const rule = config.rules[ruleId.section].rules[ruleId.num]
-				const modalInteraction = await interaction.awaitModal(new CubeModalBuilder('rules-edit')
+				const modalInteraction = await interaction.awaitModal(new CubeModalBuilder()
+					.setCustomId('rules-edit')
 					.setTitle(`Editing Rule ${stringifyRuleId(ruleId)}`)
 					.addTextInput(titleTextField(rule.title))
 					.addTextInput(contentTextField(rule.content)))
@@ -365,7 +362,8 @@ export const rulesCommand = new Command({
 			}
 			case 'add': {
 				const sectionId = getSectionIdOption('section')
-				const modalInteraction = await interaction.awaitModal(new CubeModalBuilder('rules-add')
+				const modalInteraction = await interaction.awaitModal(new CubeModalBuilder()
+					.setCustomId('rules-add')
 					.setTitle(`Adding Rule to Section ${stringifySection(sectionId)}`)
 					.addTextInput(titleTextField())
 					.addTextInput(contentTextField()))
@@ -448,17 +446,16 @@ export const rulesCommand = new Command({
 				else return new UserError('Oops! Couldn\'t find this channel. Try using the command again')
 			}
 			case 'publish': {
-				const messages = await fetchPublishedMessages(interaction.guild ?? undefined)
+				const messages = await fetchPublishedMessages()
 				if (messages) {
 					await messages[0].edit({embeds: getSummaryEmbed()})
 					for (const section of config.rules.keys()) 
 						await messages[section+1].edit({embeds: getSectionEmbed(section)})
 					return
 				}
-				const channel = await interaction.getChannelOption('channel')
+				const channel = await interaction.getTextChannelOption('channel')
 				if (!channel) throw new UserError('No channel to publish to!', true)
-				if (!channel.isTextBased()) throw new UserError('Not a text chanel!', true)
-				config.messages = (await sendRules(new CubeTextChannel(channel))).map(message => message.id)
+				config.messages = (await sendRules(channel)).map(message => message.id)
 				config.channel = channel.id
 				config.save()
 				return
