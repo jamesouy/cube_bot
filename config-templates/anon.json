@@ -1,7 +1,7 @@
 {
   "banned": {},
   "currHour": 0,
-  "muted": [],
+  "muted": {},
   "tags": {},
   "prevTags": {}
 }

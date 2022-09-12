@@ -19,7 +19,9 @@ export const config = ConfigInitializer.create<{
 		}
 	}
 	currHour: number
-	muted: string[]
+	muted: {
+		[key: string]: string | undefined
+	}
 	tags: {
 		[key: string]: number[]
 	}
@@ -42,7 +44,7 @@ function resetTags(forced = false) {
 	if (forced || now.getTime() > config.currHour) {
 		unclaimed = Array.from(new Array(10000).keys())
 		config.currHour = now.getTime()
-		config.muted = []
+		config.muted = {}
 		config.prevTags = config.tags
 		config.tags = {}
 		config.save()
@@ -63,8 +65,11 @@ function checkBan(uid: string) {
 	}
 }
 function checkMute (uid: string) {
-	if (config.muted.includes(uid))
-		throw new UserError('You are currently muted from sending anonymous messages until the end of the hour')
+	if (uid in config.muted) {
+		let msg = `You are currently muted from sending anonymous messages until the end of the hour`
+		if (config.muted[uid]) msg += `. Reason: \n> ${config.muted[uid]}`
+		throw new UserError(msg)
+	}
 }
 function findUserByTag(tag: number) {
 	for (const id in config.tags)
@@ -89,6 +94,10 @@ export const anonMod = new Command({
 				.setDescription('The tag of the anonymous user to mute')
 				.setMinValue(0)
 				.setMaxValue(9999)
+				.setRequired(false))
+			.addStringOption(option => option
+				.setName('reason')
+				.setDescription('Reason for the mute')
 				.setRequired(false)))
 
 		.addSubcommand(subcommand => subcommand
@@ -156,25 +165,35 @@ export const anonMod = new Command({
 				if (!tag) { // show list
 					return interaction.replyEphemeral({ embeds: [{
 						title: 'Current Anon Mutelist',
-						description: config.muted.map((uid, i) => 
-							`${i+1}. ${config.tags[uid].map(tag => `#${tag}`).join(', ')}`
+						description: Object.keys(config.muted).map((uid, i) => {
+							let str = `${i+1}. ${config.tags[uid].map(tag => `#${tag}`).join(', ')}`
+							if (config.muted[uid]) str += `\n> Reason: ${config.muted[uid]}`
+							return str
+						}
 						).join('') || 'No one is currently muted'
 					}]})
 				}
 
 				const uid = findUserByTag(tag)
 				if (!uid) throw new UserError(`The tag #${tag} has not been claimed for the current hour yet`)
-				if (config.muted.includes(uid)) throw new UserError('That user has already been muted')
-				config.muted.push(uid)
-				return config.save()
+				if (uid in config.muted) throw new UserError('That user has already been muted')
+				const reason = interaction.options.getString('reason')
+				config.muted[uid] = reason ?? undefined
+				await config.save()
+
+				let str = `Muted Anonymous#${tag} until the end of the hour`
+				if (reason) str += `. Reason: \n> ${reason}`
+				return interaction.reply(str)
 			}
 			case 'unmute': {
 				const tag = interaction.options.getNumber('tag', true)
 				const uid = findUserByTag(tag)
 				if (!uid) throw new UserError(`There is no user with the tag #${tag}`)
-				if (!config.muted.includes(uid)) throw new UserError(`The user with the tag #${tag} is not currently muted`)
-				config.muted.splice(config.muted.indexOf(uid), 1)
-				return config.save()
+				if (!(uid in config.muted)) throw new UserError(`The user with the tag #${tag} is not currently muted`)
+				delete config.muted[uid]
+				config.save()
+
+				return interaction.reply(`Unmuted Anonymous#${tag}`)
 			}
 			case 'ban': { 
 				const tag = interaction.options.getNumber('tag')
@@ -212,7 +231,13 @@ export const anonMod = new Command({
 				config.banned[uid] = {}
 				if (time > 0) config.banned[uid].end = Date.now()+time
 				if (reason) config.banned[uid].reason = reason
-				return config.save()
+				config.save()
+
+				const end = config.banned[uid].end
+				let str = `Banned Anonymous#${tag} from sending anonymous messages`
+				if (end) str += ` until <t:${Math.floor(end/1000)}>`
+				if (reason) str += `. Reason: \n> ${reason}`
+				return interaction.reply(str)
 			}
 			case 'unban': {
 				const uid = interaction.options.getUser('user', true).id
