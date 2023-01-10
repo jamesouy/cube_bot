@@ -1,5 +1,6 @@
-node_modules
-out/
 .DS_Store
 .env
-config/
+
+# Added by cargo
+
+/target
