@@ -1,6 +1,6 @@
 use crate::utils::errors::{user_error, DatabaseAnyhow};
 use crate::{Context, Error};
-use crate::db::anon::AnonTags;
+use crate::db::AnonTags;
 use anyhow::{anyhow, bail, Result};
 
 /// Generate a new tag to be displayed when sending anonymous messages

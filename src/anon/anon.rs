@@ -1,4 +1,4 @@
-use crate::db::anon::AnonTags;
+use crate::db::AnonTags;
 use crate::utils::discord::channel::{GuildChannelUtils, GuildUtils};
 use crate::utils::errors::{user_err, user_error, DatabaseAnyhow};
 use crate::{Context, Error};
