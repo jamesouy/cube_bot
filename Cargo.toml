@@ -7,14 +7,14 @@ edition = "2021"
 members = [".", "migration"]
 
 [dependencies]
+migration = { path = "migration" }
+
 anyhow = { version = "1.0.68", features = ["backtrace"] }
 async-trait = "0.1.61"
 poise = "0.5.2"
 regex = "1.7.1"
 sea-orm = { version = "0.10.6", features = ["sqlx-sqlite", "runtime-tokio-rustls", "macros"] }
 tokio = { version = "1.24.1", features = ["macros", "rt-multi-thread"] }
-
-migration = { path = "migration" }
 sea-query = "0.28.2"
 chrono = "0.4.23"
 thiserror = "1.0.38"

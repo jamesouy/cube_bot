@@ -1,7 +1,5 @@
 /// anon: send messages anonymously to Discord channels
 
-mod tags_registry;
-
 mod anon;
 pub use self::anon::anon;
 

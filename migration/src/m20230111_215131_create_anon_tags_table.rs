@@ -3,7 +3,7 @@
 
 use sea_orm_migration::prelude::*;
 
-use crate::m20230111_223717_create_users_table::Users;
+// use crate::m20230111_223717_create_users_table::Users;
 
 #[derive(DeriveMigrationName)]
 pub struct Migration;

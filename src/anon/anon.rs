@@ -1,4 +1,4 @@
-use crate::anon::tags_registry;
+use crate::db::anon::AnonTags;
 use crate::utils::discord::channel::{GuildChannelUtils, GuildUtils};
 use crate::utils::errors::{user_err, user_error, DatabaseAnyhow};
 use crate::{Context, Error};
@@ -86,9 +86,9 @@ pub async fn anon(
         .database
         .transaction_anyhow(|txn| {
             Box::pin(async move {
-                match tags_registry::get_tag(txn, user).await? {
+                match AnonTags::get_tag(txn, user).await? {
                     Some(tag) => Ok(Some(tag)),
-                    None => tags_registry::generate_tag(txn, user).await,
+                    None => AnonTags::generate_tag(txn, user).await,
                 }
             })
         })
