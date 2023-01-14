@@ -1,6 +1,11 @@
 .DS_Store
 .env
+tmp
 
-# Added by cargo
-
+# cargo
 /target
+.cargo/
+
+# database
+database.db
+entity/
